@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Disortion</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/quicksettings.min.js"> </script>
+
+    <script src="../../lib/gat-0.1.js"> </script>
+</head>
+<body>
+<script>
+
+const seedDigitCount = 6;
+const seedBase = 16;
+const possibleShapes = ["circle","lines"];
+const defaultArgs = {...{
+    disortion: 100,
+    length: 500,
+    space: 10,
+    shape: "circle",
+    canvasSize: [1000,1000],
+  }, ...gat.getURLQueryParams()};
+
+let centeredCanvasObj = gat.getCenteredElement("canvas", defaultArgs.canvasSize)
+let canvas = centeredCanvasObj.element
+canvas.style.backgroundColor="#EEEEEE"
+
+gat.checkAndAddSeedURL(seedDigitCount, seedBase);
+let seedList = gat.getSeedList(seedDigitCount, seedBase);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...defaultArgs.canvasSize);
+      draw(ctx)
+      gat.downloadText("disortion.svg", ctx.getSerializedSvg());
+      break;
+    case 39:
+      gat.setURLQueryParam("seed", seedList.next())
+      draw()
+      break;
+    case 37:
+      gat.setURLQueryParam("seed", seedList.prev())
+      draw();
+      break;
+  }
+});
+
+let panel = addGUI()
+panel.settings.setValue("Shape",Math.max(0,possibleShapes.indexOf(defaultArgs.shape)))
+
+function addGUI(){
+  let panel = {}
+
+  panel.settings = QuickSettings.create(10, 10, "settings");
+  panel.settings.addNumber("Disortion", 0, 1000, defaultArgs.disortion, 10, ()=>draw())
+  panel.settings.addNumber("Length", 100, 900, defaultArgs.length, 50, ()=>draw())
+  panel.settings.addNumber("Space between lines", 5, 40, defaultArgs.space, 1, ()=>draw())
+  panel.settings.addDropDown("Shape", possibleShapes, ()=>draw());
+
+  return panel
+}
+
+function draw(ctx){
+  args = {
+    disortion: panel.settings.getValue("Disortion"),
+    length: panel.settings.getValue("Length"),
+    space: panel.settings.getValue("Space between lines"),
+    shape: panel.settings.getValue("Shape").value,
+    resolution: 80,
+    radius: 220
+  }
+  gat.setURLQueryParams(args)
+
+  if (ctx === undefined){
+    ctx = canvas.getContext("2d") 
+    ctx.clearRect(0, 0,canvas.width,canvas.height);
+  }
+  ctx.beginPath();
+
+  let ran = gat.Randomizer(parseInt(seedList.current(), 16));
+  let stepsCount = args.length/args.space
+  let stepSize = args.disortion/stepsCount
+  let drawingStartY = (canvas.height-(stepsCount*args.space))/2
+
+  let points;
+  if (args.shape=="circle"){
+    points = getInitCircle(args, drawingStartY)
+    drawCircle(ctx, points, true)
+  } else {
+    points = getInitLine(args, drawingStartY);
+    drawLine(ctx, points)
+  }
+
+  let translate = []
+  for(let i=0; i<stepsCount; i++){
+    for(let j=0; j<points.length; j++){
+      points[j][0] += ran.next(-stepSize,stepSize)
+      points[j][1] += ran.next(-stepSize, stepSize) + args.space
+    }
+
+    if (args.shape=="circle"){
+      drawCircle(ctx, points, false)
+    } else {
+      drawLine(ctx, points)
+    }
+  }
+
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=2;
+  ctx.stroke()
+}
+
+function drawLine(ctx, points){
+  ctx.moveTo(...points[0])
+  for(let i=1; i<points.length; i++){
+    ctx.lineTo(...points[i])
+  }
+}
+
+function drawCircle(ctx, points, useMoveTo){
+  if (useMoveTo){
+    ctx.moveTo(...points[points.length-1])
+  } else {
+    ctx.lineTo(...points[points.length-1])
+  }
+
+  for(let i=0; i<points.length; i++){
+    ctx.lineTo(...points[i])
+  }
+}
+
+function getInitLine(args, drawingStartY){
+  let points = []
+  let deltaX = 800/50
+  for(let i=0; i<50; i++){
+    points.push([100+i*deltaX,drawingStartY])
+  }
+  return points
+}
+
+function getInitCircle(args, drawingStartY){
+  let deltaAngle = Math.PI*2/args.resolution
+
+  let circlePoints = []
+  for(let i=0; i<args.resolution; i++){
+    let angle = deltaAngle*i
+    circlePoints.push([
+      500+Math.cos(angle)*args.radius*2,
+      drawingStartY-Math.sin(angle)*args.radius/2
+    ])
+  }
+  return circlePoints
+}
+
+</script>
+</body>
+</html>

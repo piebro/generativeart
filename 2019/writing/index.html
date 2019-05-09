@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>writing</title>
+  <script src="../../lib/canvas2svg.js"> </script>
+  <script src="../../lib/quicksettings.min.js"> </script>
+  <script src="../../lib/opentype.min.js"> </script>
+
+  <script src="../../lib/gat-0.1.js"> </script>
+  <script src="../../lib/gat.path-0.4.js"> </script>
+  <script src="../../lib/gat.alphabet-0.2.js"> </script>
+
+</head>
+</html>
+
+<script>
+
+let visibleFonts = [
+  "my_connected",
+  "my_monospace",
+  "cnc_v",
+  "SourceCodePro-ExtraLight",
+  "Roboto-Black",
+  "LeagueScript",
+  "BadScript-Regular",
+  "DawningofaNewDay",
+  "hershey_astrology",
+  "hershey_cyrilic_1",
+  "hershey_japanese",
+  "hershey_futural",
+  "hershey_gothgrt",
+  "hershey_gothitt",
+  "hershey_greeks",
+  "hershey_rowmant",
+]
+let fontUrlMap = {
+  "Roboto-Black": "../../data-and-scripts/fonts/Roboto-Black.ttf",
+  "cnc_v": "../../data-and-scripts/fonts/cnc_v.ttf",
+  "NotoSansCJKjp": "../../data-and-scripts/fonts/NotoSansCJKjp-Thin.otf",
+  "SourceCodePro-ExtraLight": "../../data-and-scripts/fonts/SourceCodePro-ExtraLight.ttf",
+  "BadScript-Regular": "../../data-and-scripts/fonts/BadScript-Regular.ttf",
+  "DawningofaNewDay": "../../data-and-scripts/fonts/DawningofaNewDay.ttf",
+  "LeagueScript": "../../data-and-scripts/fonts/LeagueScript.ttf",
+}
+const defaultArgs = {...{
+    font: "my_connected",
+    text: "Example Text",
+    fit_to_screen: false,
+    width: 3,
+    canvasWidth: 1000,
+    canvasHeight: 600
+  }, ...gat.getURLQueryParams()};
+
+const centeredCanvasObj = gat.getCenteredElement("canvas", [defaultArgs.canvasWidth,defaultArgs.canvasHeight], 0.9)
+const canvas = centeredCanvasObj.element
+canvas.style.backgroundColor="#EEEEEE"
+
+window.addEventListener("keyup", (event) => {
+  if (document.activeElement.tagName == "TEXTAREA") return
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(
+        panel.details.getValue("Canvas Width"),
+        panel.details.getValue("Canvas Height"));
+      draw(ctx)
+      gat.downloadText("writing.svg", ctx.getSerializedSvg());
+      break;
+  }
+});
+
+let panel = addGUI()
+panel.settings.setValue("Fonts",Math.max(0,visibleFonts.indexOf(defaultArgs.font)))
+
+
+function addGUI(){
+  async function loadFontInCssFromUrl(fontName, fontPath) {
+      const font = new FontFace(fontName, "url("+fontPath+")");
+      await font.load();
+      document.fonts.add(font);
+      document.body.classList.add('fonts-loaded');
+  }
+
+  async function loadFontInCssFromArrayBuffer(fontName, fontArrayBuffer) {
+      const font = new FontFace(fontName, fontArrayBuffer);
+      await font.load();
+      document.fonts.add(font);
+      document.body.classList.add('fonts-loaded');
+  }
+
+  let fontChangedCallback = function(){
+    let fontName = panel.settings.getValue("Fonts").value
+    if (gat.alphabet[fontName]==undefined){
+      fontUrl = fontUrlMap[fontName]
+      gat.alphabet.tools.loadOpentypeFontFromUrl(
+        fontUrl, fontName, fontChangedCallback)
+      loadFontInCssFromUrl(fontName, fontUrl)
+      return
+    }
+    panel.details.setValue("Available Characters",gat.alphabet[fontName].availableCharacters)
+
+    // cnc_v hat keine Flächen und kann sonst nicht angezeigt werden
+    if (fontName == "cnc_v") fontName = "georgia"
+    panel.details.overrideStyle("Available Characters", "fontFamily", fontName);
+    panel.settings.overrideStyle("Text", "fontFamily", fontName);
+
+    draw()
+  }
+
+  let fileChooserCallback = function(file){
+    let fontName = file.name.split(".")[0]
+    let reader = new FileReader();
+    reader.readAsArrayBuffer(file)
+    reader.onloadend = function(){
+      gat.alphabet.tools.loadOpentypeFontFromArrayBuffer(this.result, fontName, ()=>draw())
+      loadFontInCssFromArrayBuffer(fontName, this.result)
+      visibleFonts.push(fontName)
+      panel.settings.removeControl("Fonts")
+      panel.settings.addDropDown("Fonts", visibleFonts, fontChangedCallback);
+      panel.settings.setValue("Fonts",visibleFonts.length-1)
+    }
+  }
+
+  let panel = {}
+  
+  panel.details = QuickSettings.create(window.innerWidth-10-200, 10, "details");
+  panel.details.addFileChooser("Add Font", "Click to choose Font","", fileChooserCallback);
+  panel.details.addNumber("Canvas Width", 0, 10000, defaultArgs.canvasWidth, 1, ()=>draw())
+  panel.details.addNumber("Canvas Height", 0, 10000, defaultArgs.canvasHeight, 1, ()=>draw())
+  panel.details.addTextArea("Available Characters", "");
+  panel.details.overrideStyle("Available Characters", "fontSize", "16px");
+  panel.details.collapse()
+
+  panel.settings = QuickSettings.create(10, 10, "settings");
+  panel.settings.addDropDown("Fonts", visibleFonts, fontChangedCallback);
+  panel.settings.addTextArea("Text", defaultArgs.text, ()=>draw());
+  panel.settings.overrideStyle("Text", "fontSize", "16px");
+  panel.settings.addBoolean("Fit to screen", JSON.parse(defaultArgs.fit_to_screen), ()=>draw())
+  panel.settings.addNumber("Stroke Width", 1, 20, defaultArgs.width, 1, ()=>draw())
+
+  return panel
+}
+
+
+function draw(ctx){
+  args = {
+    font: panel.settings.getValue("Fonts").value,
+    text: panel.settings.getValue("Text"),
+    fit_to_screen: panel.settings.getValue("Fit to screen"),
+    width: panel.settings.getValue("Stroke Width"),
+    canvasWidth: panel.details.getValue("Canvas Width"),
+    canvasHeight: panel.details.getValue("Canvas Height"),
+  }
+  gat.setURLQueryParams(args)
+  
+  if (ctx === undefined){
+    ctx = canvas.getContext("2d") 
+    ctx.clearRect(0, 0,args.canvasWidth, args.canvasHeight);
+    centeredCanvasObj.size = [args.canvasWidth, args.canvasHeight]
+  }
+  
+  ctx.beginPath();
+  let pb = gat.path.textToPathAndBbox(args.text, gat.alphabet[args.font])
+  let a = 0
+  gat.path.drawPathBbox(ctx, pb.path, pb.bbox, [args.canvasWidth*0.1,args.canvasHeight*0.1,args.canvasWidth*0.9,args.canvasHeight*0.9], 0, !args.fit_to_screen)
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=args.width;
+  ctx.stroke()
+}
+
+</script>

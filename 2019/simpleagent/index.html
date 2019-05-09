@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simpleagent</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/quicksettings.min.js"> </script>
+
+    <script src="../../lib/gat-0.1.js"> </script>
+</head>
+<body>
+<script>
+
+const seedDigitCount = 6;
+const seedBase = 16;
+const defaultArgs = {...{
+    steps: 10000,
+    length: 10,
+    canvasSize: [1000,1000],
+  }, ...gat.getURLQueryParams()};
+
+let centeredCanvasObj = gat.getCenteredElement("canvas", defaultArgs.canvasSize)
+let canvas = centeredCanvasObj.element
+canvas.style.backgroundColor="#EEEEEE"
+
+gat.checkAndAddSeedURL(seedDigitCount, seedBase);
+let seedList = gat.getSeedList(seedDigitCount, seedBase);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...defaultArgs.canvasSize);
+      draw(ctx)
+      gat.downloadText("simpleagent.svg", ctx.getSerializedSvg());
+      break;
+    case 39:
+      gat.setURLQueryParam("seed", seedList.next())
+      draw()
+      break;
+    case 37:
+      gat.setURLQueryParam("seed", seedList.prev())
+      draw();
+      break;
+  }
+});
+
+let panel = addGUI()
+draw()
+
+function addGUI(){
+  let panel = {}
+  panel.settings = QuickSettings.create(10, 10, "settings");
+  panel.settings.addNumber("Steps", 10000, 17000, defaultArgs.steps, 1000, ()=>draw())
+  panel.settings.addNumber("Step Length", 1, 100, defaultArgs.length, 1, ()=>draw())
+  return panel
+}
+
+function draw(ctx){
+  args = {
+    disortion: panel.settings.getValue("Steps"),
+    length: panel.settings.getValue("Step Length"),
+  }
+  gat.setURLQueryParams(args)
+
+  if (ctx === undefined){
+    ctx = canvas.getContext("2d") 
+    ctx.clearRect(0, 0,canvas.width,canvas.height);
+  }
+  ctx.beginPath();
+
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3;
+
+  let ran = gat.Randomizer(panel.seed)
+
+  let maxMovements = panel.settings.getValue("Steps")
+  let gridMult = panel.settings.getValue("Step Length")/10
+
+  maxMovements = Math.round(maxMovements/gridMult)
+  maxMovements = Math.min(maxMovements,17000)
+
+  let strongDir = ran.nextInt(0,7)
+  let stringDirMult  = 2
+
+  let customDirection=[
+    [0,-1], //N
+    [1,-1], //NE
+    [1,0],  //E
+    [1,1],  //SE
+    [0,1],  //S
+    [-1,1], //SW
+    [-1,0], //W
+    [-1,-1],//NW
+  ]
+  for(let i=0; i<stringDirMult; i++){
+    customDirection.push(customDirection[strongDir])
+  }
+
+  let gridWidth = Math.round(canvas.width/3/gridMult)
+  let gridHeight = Math.round(canvas.height/3/gridMult)
+  let deltaX = canvas.width/gridWidth
+  let deltaY = canvas.height/gridHeight
+
+  let old_pos = [ran.nextInt(0,gridWidth), ran.nextInt(0,gridHeight)]
+
+  let pos = [...old_pos]
+  ctx.beginPath();
+  ctx.moveTo(pos[0]*deltaX, pos[1]*deltaY)
+
+  for(let i=1; i<maxMovements; i++){
+    let a = ran.nextInt(0,customDirection.length)
+    let dir = customDirection[a]
+    pos[0] += dir[0]
+    pos[1] += dir[1]
+
+    if (pos[0]<0 || pos[0]>gridWidth || pos[1]<0 || pos[1]>gridHeight) {
+      pos[0] = (gridWidth + pos[0])%gridWidth
+      pos[1] = (gridHeight + pos[1])%gridHeight
+      ctx.stroke()
+      ctx.beginPath();
+      ctx.moveTo((pos[0]-dir[0])*deltaX,(pos[1]-dir[1])*deltaY)
+    }
+
+    ctx.lineTo(pos[0]*deltaX, pos[1]*deltaY)
+  }
+  ctx.stroke()
+}
+
+
+</script>
+</body>
+</html>

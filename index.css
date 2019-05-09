@@ -1,0 +1,49 @@
+div.center {
+  position: relative;
+  padding-top: 80px;
+  padding-bottom: 200px;
+  width: 80%;
+  margin: auto;
+
+  text-align: center;
+  font-family:monospace;
+  font-size:25px;
+}
+
+div.textbox {
+  text-align: left;
+  padding-bottom:40px;
+}
+
+a {
+  text-decoration: none;
+  color:green;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+td {
+  height: 80px;
+}
+td.date {
+  color: #595959;
+  font-size: 70%;
+  height: 80px;
+}
+
+@media (min-width: 800px) {
+    div.center {
+      width: 640px;
+    }
+}
+
+/* input[type=text] {
+  font-size:25px;
+  font-family:monospace;
+  width:150px;
+}
+select {
+  font-size:25px;
+  font-family:monospace;
+} */
