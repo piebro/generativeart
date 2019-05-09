@@ -6,6 +6,20 @@
 </head>
 <body>
 
+<script>
+const nameUrlMap = {
+  wr: "2019/writing",
+  do: "2019/disortion",
+  sa: "2019/simple-agent",
+  qd: "2018/quickdraw",
+};
+const s = new URL(window.location.href).searchParams.get("s");
+if (s != undefined){
+  [type, seed] = s.split("-");
+  window.location.replace(nameUrlMap[type] +  "?seed=" + seed);
+}
+</script>
+
 <div class="center">
   <div class="textbox">
     This is a little summary of some generative art I make. All the code is available here: <a href="https://github.com/piebro/generativeart">github</a>
@@ -13,8 +27,6 @@
     <br>
     You can use the arrow keys to navigate, the s-key to save the image.
   </div>
-
-
 
   <table style="width:100%">
     <tr>
@@ -35,21 +47,6 @@
   </table>
 </div>
 
-<script>
-const nameUrlMap = {
-  wr: "2019/writing",
-  do: "2019/disortion",
-  sa: "2019/simple-agent",
-  qd: "2018/quickdraw",
-};
-const s = new URL(window.location.href).searchParams.get("s");
-if (s != undefined){
-  [type, seed] = s.split("-");
-  const newUrl = window.location.protocol + window.location.hostname + window.location.pathname + nameUrlMap[type] +  "?seed=" + seed;
-  window.location.replace(newUrl);
-}
-</script>
-
 <style>
 div.center {
   position: relative;
@@ -57,7 +54,6 @@ div.center {
   padding-bottom: 200px;
   width: 80%;
   margin: auto;
-
   text-align: center;
   font-family:monospace;
   font-size:25px;
