@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>generativeart</title>
-    <script src="index.js"></script>
-    <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
 
@@ -20,7 +18,7 @@
 
   <table style="width:100%">
     <tr>
-      <td class="date">Jan 3, 2019</td>
+      <td class="date">Jan 30, 2019</td>
       <td><a href="2019/writing/">Writing</a></td>
     </tr>
     <tr>
@@ -29,13 +27,73 @@
     </tr>
     <tr>
       <td class="date">Jan 10, 2019</td>
-      <td><a href="2019/simpleagent/">Simple Agent</a></td>
+      <td><a href="2019/simple-agent/">Simple Agent</a></td>
     </tr>
       <td class="date">Dec 3, 2018</td>
       <td><a href="2018/quickdraw/">Quickdraw</a></td>
     </tr>
   </table>
 </div>
+
+<script>
+const nameUrlMap = {
+  wr: "2019/writing",
+  do: "2019/disortion",
+  sa: "2019/simple-agent",
+  qd: "2018/quickdraw",
+};
+const s = new URL(window.location.href).searchParams.get("s");
+if (s != undefined){
+  [type, seed] = s.split("-");
+
+  const newUrl = window.location.protocol + window.location.hostname + window.location.pathname + nameUrlMap[type] +  "?s=" + seed;
+  console.log(newUrl)
+
+  //window.location.href = window.location.protocol + window.location.hostname + window.location.pathname + type +  "?s=" + seed;
+}
+</script>
+
+<style>
+div.center {
+  position: relative;
+  padding-top: 80px;
+  padding-bottom: 200px;
+  width: 80%;
+  margin: auto;
+
+  text-align: center;
+  font-family:monospace;
+  font-size:25px;
+}
+
+div.textbox {
+  text-align: left;
+  padding-bottom:40px;
+}
+
+a {
+  text-decoration: none;
+  color:green;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+td {
+  height: 80px;
+}
+td.date {
+  color: #595959;
+  font-size: 70%;
+  height: 80px;
+}
+
+@media (min-width: 800px) {
+    div.center {
+      width: 640px;
+    }
+}
+</style>
 
 </body>
 </html>

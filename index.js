@@ -2,7 +2,7 @@ checkUrlArgs()
 
 function checkUrlArgs(){
   let algNameToUrlMap = {
-    "simpleagent":"2019/simpleagent"
+    "simpleagent":"2019/simpleagent",
     "disortion":"2019/disortion",
     "writing":"2019/writing",
     "quickdraw1":"2018/quickdraw1",
