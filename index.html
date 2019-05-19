@@ -8,6 +8,7 @@
 
 <script>
 const nameUrlMap = {
+  fn: "2019/fern",
   wr: "2019/writing",
   do: "2019/disortion",
   sa: "2019/simple-agent",
@@ -16,19 +17,25 @@ const nameUrlMap = {
 const s = new URL(window.location.href).searchParams.get("s");
 if (s != undefined){
   [type, seed] = s.split("-");
-  window.location.replace(nameUrlMap[type] +  "?seed=" + seed);
+  window.location.replace(nameUrlMap[type] +  "?s=" + seed);
 }
 </script>
 
 <div class="center">
   <div class="textbox">
-    This is a little summary of some generative art I make. All the code is available here: <a href="https://github.com/piebro/generativeart">github</a>
+    This is a little summary of some generative art I make. All the code is available here: <a href="https://github.com/piebro/generativeart">github</a>.
+    <br>
+    To see older projects go to the <a href="https://piebro.github.io/little-graveyard/">graveyard</a>.
     <br>
     <br>
     You can use the arrow keys to navigate, the s-key to save the image.
   </div>
 
   <table style="width:100%">
+    <tr>
+      <td class="date">May 19, 2019</td>
+      <td><a href="2019/fern/">Fern</a></td>
+    </tr>
     <tr>
       <td class="date">Jan 30, 2019</td>
       <td><a href="2019/writing/">Writing</a></td>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hilbert Curve</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+
+    <script src="../../lib/gat-0.1.js"> </script>
+</head>
+<body>
+<script>
+
+// credit: https://turtletoy.net/turtle/59ccf67626
+// credit: https://turtletoy.net/syntax
+
+defaultArgs={
+  canvasSize: [1000,1000],
+  iterations: 4,
+}
+
+const seedDigitCount = 6;
+const seedBase = 16;
+
+let centeredCanvasObj = gat.getCenteredElement("canvas", defaultArgs.canvasSize, 0.9)
+let canvas = centeredCanvasObj.element
+canvas.style.backgroundColor="#EEEEEE"
+
+gat.checkAndAddSeedURL(seedDigitCount, seedBase);
+let seedList = gat.getSeedList(seedDigitCount, seedBase);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...defaultArgs.canvasSize);
+      draw(ctx)
+      gat.downloadText("templet.svg", ctx.getSerializedSvg());
+      break;
+    case 39:
+      gat.setURLQueryParam("seed", seedList.next())
+      draw()
+      break;
+    case 37:
+      gat.setURLQueryParam("seed", seedList.prev())
+      draw();
+      break;
+  }
+});
+
+
+gat.getTurtle = function(ctx){
+  ctx.beginPath();
+  ctx.moveTo(0,0)
+  return {
+    x:0,
+    y:0,
+    d:0,
+    penUp:false,
+    forward: function(distance){
+      this.x += distance * Math.cos(this.d);
+      this.y += distance * Math.sin(this.d);
+      ctx.lineTo(this.x, this.y)
+    },
+    backward: function(distance){
+      this.x -= distance * Math.cos(this.d);
+      this.y -= distance * Math.sin(this.d);
+      ctx.lineTo(this.x, this.y)
+    },
+    right: function(angle){
+      this.d = (this.d + angle/180*Math.PI)%(Math.PI*2)
+    },
+    left: function(angle){
+      this.d = (this.d - angle/180*Math.PI)%(Math.PI*2)
+    },
+    goto: function(x, y){
+      ctx.beginPath();
+      this.x = x;
+      this.y = y;
+      ctx.moveTo(x, y)
+    },
+    setx: function(x){
+
+    },
+    sety: function(y){
+
+    },
+    setheading: function(to_angle){
+
+    },
+    home: function(){
+
+    },
+    circle: function(){
+
+    },
+    position: function(){
+
+    },
+    xcor: function(){
+
+    },
+    ycor: function(){
+
+    },
+    heading: function(){
+
+    },
+    pendown: function(){
+
+    },
+    penup: function(){
+
+    },
+    clone: function(){
+
+    }
+  }
+}
+
+draw()
+
+function draw(ctx){
+  if (ctx === undefined){
+    ctx = canvas.getContext("2d") 
+    ctx.clearRect(0, 0,canvas.width,canvas.height);
+  }
+  ctx.beginPath();
+
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3;
+
+  let ran = gat.Randomizer(parseInt(seedList.current(), seedBase))
+
+  const ruleFunc = applyRulesHilbertCurve;
+
+  const cmdStr = createLSystem(defaultArgs.iterations, "X", ruleFunc); // number of iterations and axiom
+  const turtle = gat.getTurtle(ctx);
+  const distance = 900 / (Math.pow(2,defaultArgs.iterations)-1)
+  turtle.goto(50,950);
+  drawString(turtle, cmdStr, distance, 90);
+  ctx.stroke()
+}
+
+// "https://turtletoy.net/turtle/59ccf67626"
+// l-system
+function createLSystem(numIters, axiom, ruleFunc) {
+    let s = axiom;
+    for (let i=0; i<numIters; i++) {
+        s = processString(s, ruleFunc);
+    }
+    return s;
+}
+
+function processString(oldStr, ruleFunc) {
+    let newstr = "";
+    for (let i=0; i<oldStr.length; i++) {
+        newstr += ruleFunc(oldStr[i]);
+    }
+    return newstr;
+}
+
+function applyRulesHilbertCurve(ch) {
+    switch (ch) {
+        case "X":  return "-YF+XFX+FY-"; //   # Rule 1
+        case "Y": return "+XF-YFY-FX+" //   # Rule 2
+        default: return ch;
+    }
+}
+
+function applyRulesTest(ch) {
+    switch (ch) {
+        case "X":  return "-F+FX"; //   # Rule 1
+        case "Y": return "+XF-YFY-FX+" //   # Rule 2
+        default: return ch;
+    }
+}
+
+function drawString(turtle, cmdStr, distance, angle){
+  const states = [];
+  //console.log(cmdStr)
+  for(cmd of cmdStr){
+    switch (cmd) {
+        case "F":   turtle.forward(distance);
+                    break;
+        case "B":   turtle.backward(distance);
+                    break;
+        case "+":   turtle.right(angle);
+                    break;
+        case "-":   turtle.left(angle);
+                    break;
+        case "[":   states.push({
+                        x: turtle.xcor(),
+                        y: turtle.ycor(),
+                        h: turtle.heading()
+                    });
+                    break;
+        case "]":   const state = states.pop();
+                    turtle.penup();
+                    turtle.goto(state.x, state.y);
+                    turtle.setheading(state.h);
+                    turtle.pendown();
+                    break;
+        default:
+    }
+  }
+}
+
+
+
+</script>
+</body>
+</html>

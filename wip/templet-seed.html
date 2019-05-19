@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Templet Seed</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/gat-0.2.js"> </script>
+</head>
+<body> 
+<script>
+const canvasSize = [1000,1000];
+const highestSeed = (16**6)-1;
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
+
+if(new URLSearchParams(window.location.search).has("s")){
+  parameterHandler.load(gat.getURLQueryParam("s"))
+}
+const seedList = new gat.SeedList(parameterHandler.get("seed"),highestSeed);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...canvasSize);
+      draw(ctx)
+      gat.downloadText("templet-seed-" + parameterHandler.save() + ".svg", ctx.getSerializedSvg());
+      break;
+     case 39:
+      parameterHandler.set("seed", seedList.next())
+      redraw()
+      break;
+    case 37:
+      parameterHandler.set("seed", seedList.prev())
+      redraw()
+      break; 
+  }
+});
+
+redraw()
+
+function draw(ctx){
+  args = parameterHandler.getAll();
+  gat.setURLQueryParam("s", parameterHandler.save());
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
+  ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3;
+  let ran = new gat.Randomizer(args.seed)
+  
+  ctx.moveTo(100,100);
+  ctx.lineTo(900,ran.nextInt(100,900));
+  
+  ctx.stroke();
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fern</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/dat.gui.min.js"></script>
+    <script src="../../lib/gat-0.2.js"> </script>
+    <script src="../../lib/gat.number2Words.js"> </script>
+</head>
+<body> 
+<script>
+
+
+
+const canvasSize = [1000,1000];
+const highestSeed = (16**3)-1;
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addSlider("leaf rotation", 0.1, -0.2, 0.5, 0.02)
+parameterHandler.addSlider("sub stem length", 0.2, 0, 0.4, 0.01)
+parameterHandler.addSlider("sub leaf width", 0.3, 0, 0.7, 0.02)
+parameterHandler.addSlider("bend value", 0.5, 0, 1, 0.05)
+parameterHandler.addSlider("crazy", 0.85, 0.04, 0.96, 0.02)
+parameterHandler.addSlider("stem bend value", 0, -0.07, 0.07, 0.005)
+parameterHandler.addSlider("laola", 0, -0.5, 0.5, 0.05)
+parameterHandler.addSlider("point count", 2000, 100, 10000, 100)
+parameterHandler.addButton("connect points", false)
+parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
+
+if(new URLSearchParams(window.location.search).has("s")){
+  parameterHandler.load(gat.hex2Binary(gat.getURLQueryParam("s")))
+}
+const seedList = new gat.SeedList(parameterHandler.get("seed"),highestSeed);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...canvasSize);
+      draw(ctx)
+      gat.downloadText("fn-" + gat.binary2Hex(parameterHandler.save()) + ".svg", ctx.getSerializedSvg());
+      break;
+     case 39:
+      parameterHandler.set("seed", seedList.next())
+      redraw()
+      break;
+    case 37:
+      parameterHandler.set("seed", seedList.prev())
+      redraw()
+      break; 
+  }
+});
+
+redraw()
+
+function draw(ctx){
+  args = parameterHandler.getAll();
+  gat.setURLQueryParam("s", gat.binary2Hex(parameterHandler.save()));
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
+  ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3;
+  let ran = new gat.Randomizer(args.seed)
+
+
+  let params = {
+    "likelyhood":[
+      ["stem",0.01],["smaller leafs", 0.85],["left leaflet", 0.07],["right leaflet", 0.07]
+    ],
+    "stem":{"a":0, "b":0, "c":0, "d":0.17, "e":0, "f":0},
+    // a: crazy
+    // b: stem bend value
+    // c: laola
+    // d: size kind of
+    // e: stem translated x
+    // f: height
+    // a: 0.05, 0.95
+    // b: -0.5, 0.5
+    // c: -0.5, 0.5
+    "smaller leafs":{
+      "a":args["crazy"],
+      "b":args["stem bend value"],
+      "c":args["laola"],
+      "d":0.85,
+      "e":0, "f":1.60},
+    // a: leaf rotation
+    // b: sub stem length
+    // c: sub leaf width
+    // d: bend value
+    // e: leafs go up at the beginning
+    // f: leafs go right
+    "left leaflet":{
+      "a":args["leaf rotation"],
+      "b":-args["sub stem length"],
+      "c":args["sub leaf width"],
+      "d":args["bend value"],
+      "e":0, "f":0.44},
+    "right leaflet":{
+      "a":-args["leaf rotation"],
+      "b":args["sub stem length"],
+      "c":args["sub leaf width"],
+      "d":args["bend value"],
+      "e":0, "f":0.44},
+  }
+
+  let drawFunc;
+  let pointCount;
+  if(args["connect points"]){
+    drawFunc = function(plotX, plotY){
+      ctx.lineTo(plotX, plotY);
+    }
+    pointCount = args["point count"]/5;
+  } else {
+    drawFunc = function(plotX, plotY){
+      ctx.moveTo(plotX, plotY)
+      ctx.lineTo(plotX+0.0001, plotY);
+    }
+    pointCount = args["point count"];
+  }
+  
+  let p = [0,0]
+  for (let i = 0; i < pointCount; i++){
+    moveAll(ctx, drawFunc, params, ran, p,)
+  }
+  ctx.stroke();
+}
+
+function moveAll(ctx, drawFunc, params, ran, p) {
+  let nextX, nextY;
+  let x = p[0];
+  let y = p[1];
+  let r = ran.next();
+
+  let c = ran.nextWeightedChoice(params.likelyhood)
+  nextX = params[c].a * x + params[c].b * y + params[c].e;
+  nextY = params[c].c * x + params[c].d * y + params[c].f;
+
+  // Scaling and positioning
+  let plotX = canvasSize[0] * (x + 3) / 6;
+  let plotY = canvasSize[1] - canvasSize[1] * ((y + 2) / 14);
+
+  
+  drawFunc(plotX, plotY);
+
+  p[0] = nextX;
+  p[1] = nextY;
+
+}
+
+</script>
+</body>
+</html>

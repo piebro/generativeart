@@ -4,56 +4,61 @@
     <meta charset="UTF-8">
     <title>Quickdraw</title>
     <script src="../../lib/canvas2svg.js"> </script>
-
     <script src="../../data-and-scripts/quickdraw/quickdraw_data5.js"> </script>
-    <script src="../../lib/gat-0.1.js"> </script>
+    <script src="../../lib/gat-0.2.js"> </script>
     <script src="../../lib/gat.path-0.1.js"> </script>
 </head>
-<body>
+<body> 
 <script>
-
-const size = [1000,1000]
-const centeredCanvasObj = gat.getCenteredElement("canvas", size, 0.9)
-const canvas = centeredCanvasObj.element
-canvas.style.backgroundColor="#EEEEEE"
-const seedDigitCount = 6;
-const seedBase = 16;
-
-gat.checkAndAddSeedURL(seedDigitCount, seedBase);
-let seedList = gat.getSeedList(seedDigitCount, seedBase);
-
-window.addEventListener("keyup", (event) => {
-    switch(event.keyCode){
-        case 83:
-            const ctx = new C2S(...size);
-            draw(ctx)
-            gat.downloadText("qd-"+ seedList.current() + ".svg", ctx.getSerializedSvg());
-            break;
-        case 39:
-            gat.setURLQueryParam("seed", seedList.next())
-            draw()
-            break;
-        case 37:
-            gat.setURLQueryParam("seed", seedList.prev())
-            draw();
-            break;
-    }
-});
+const canvasSize = [1000,1000];
+const highestSeed = (16**6)-1;
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
 
 const qdt = getQuickdrawTools(quickdraw_data5)
 
-draw()
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
+
+if(new URLSearchParams(window.location.search).has("s")){
+  parameterHandler.load(gat.hex2Binary(gat.getURLQueryParam("s")))
+}
+const seedList = new gat.SeedList(parameterHandler.get("seed"),highestSeed);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...canvasSize);
+      draw(ctx)
+      gat.downloadText("qd-" + gat.binary2Hex(parameterHandler.save()) + ".svg", ctx.getSerializedSvg());
+      break;
+     case 39:
+      parameterHandler.set("seed", seedList.next())
+      redraw()
+      break;
+    case 37:
+      parameterHandler.set("seed", seedList.prev())
+      redraw()
+      break; 
+            break;
+      break; 
+  }
+});
+
+redraw()
 
 function draw(ctx){
-  if (ctx === undefined){
-    ctx = canvas.getContext("2d") 
-    ctx.clearRect(0, 0,canvas.width,canvas.height);
-  }
+  args = parameterHandler.getAll();
+  gat.setURLQueryParam("s", gat.binary2Hex(parameterHandler.save()));
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
   ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=5;
+  let ran = new gat.Randomizer(args.seed)
 
-  let border = 100
-  let ran = gat.Randomizer(parseInt(seedList.current(), 16));
-
+  let border = 100;
   let dd = gat.ranVariable.discreteDistribution;
   let ld = gat.ranVariable.linearDistribution;
 
@@ -105,12 +110,8 @@ function draw(ctx){
   let getRotateFunc = get_getRotateFunc(ran, rotateMode)
 
 
-  grid(ctx, gridSize,[border,border,size[0]-border,size[1]-border], getDrawingFunc, getScaleFunc, getTranlateFunc, getRotateFunc)
+  grid(ctx, gridSize,[border,border,canvasSize[0]-border,canvasSize[1]-border], getDrawingFunc, getScaleFunc, getTranlateFunc, getRotateFunc)
 
-
-  ctx.lineJoin="round";
-  ctx.lineCap="round";
-  ctx.lineWidth=5;
   ctx.stroke()
 
 }
