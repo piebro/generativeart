@@ -12,7 +12,8 @@
 <input id="myInput" type="file" style="visibility:hidden" onchange='openFile(event)'/>
 
 <script>
-  //https://wiki.openstreetmap.org/wiki/Map_Features
+
+//https://wiki.openstreetmap.org/wiki/Map_Features
 const drawSettings = [
   [true, "building", "yes"],
 
@@ -50,13 +51,13 @@ parameterHandler.addButton("Load file", () => document.getElementById('myInput')
 
 var currentXMLDoc;
 
-getMapFileFromServer("/map1.osm");
+getMapFileFromServer("./map1.osm")
 
 window.addEventListener("keyup", (event) => {
   if(event.keyCode === 83){
       const ctx = new C2S(...canvasSize);
       draw(ctx)
-      gat.downloadText("map.svg", ctx.getSerializedSvg());
+      gat.downloadText("./map.svg", ctx.getSerializedSvg());
   }
 });
 
@@ -193,24 +194,17 @@ function openFile(event) {
   reader.readAsText(input.files[0]);
 };
 
-function getMapFileFromServer(url){
+async function getMapFileFromServer(url){
   let jsonFile = new XMLHttpRequest();
   jsonFile.open("GET",url,true);
   jsonFile.send();
   jsonFile.onreadystatechange = function() {
     if (jsonFile.readyState== 4 && jsonFile.status == 200) {
       changedInputXMLString(jsonFile.responseText);
+      redraw()
     }
   }
 }
-
-
-</script>
-</body>
-</html>
-
-
-
 
 
 </script>
