@@ -18,7 +18,7 @@ const parameterHandler = new gat.ParameterHandler(redraw);
 parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
 
 if(new URLSearchParams(window.location.search).has("s")){
-  parameterHandler.load(gat.getURLQueryParam("s"))
+  parameterHandler.load(gat.hex2Binary(gat.getURLQueryParam("s")))
 }
 const seedList = new gat.SeedList(parameterHandler.get("seed"),highestSeed);
 
@@ -27,7 +27,7 @@ window.addEventListener("keyup", (event) => {
     case 83:
       const ctx = new C2S(...canvasSize);
       draw(ctx)
-      gat.downloadText("templet-seed-" + parameterHandler.save() + ".svg", ctx.getSerializedSvg());
+      gat.downloadText("templet-seed-" + gat.binary2Hex(parameterHandler.save()) + ".svg", ctx.getSerializedSvg());
       break;
      case 39:
       parameterHandler.set("seed", seedList.next())
@@ -44,7 +44,7 @@ redraw()
 
 function draw(ctx){
   args = parameterHandler.getAll();
-  gat.setURLQueryParam("s", parameterHandler.save());
+  gat.setURLQueryParam("s", gat.binary2Hex(parameterHandler.save()));
   if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
   ctx.beginPath();
   ctx.lineJoin="round";

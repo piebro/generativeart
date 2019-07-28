@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Draw Lines From Text Files</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/dat.gui.min.js"></script>
+    <script src="../../lib/gat-0.2.js"> </script>
+</head>
+<body> 
+
+<input id="myInput" type="file" style="visibility:hidden" onchange='openFile(event)'/>
+
+<script>
+  //https://wiki.openstreetmap.org/wiki/Map_Features
+const drawSettings = [
+  [true, "building", "yes"],
+
+  [true, "highway", "primary"],
+  [true, "highway", "secondary"],
+  [true, "highway", "tertiary"],
+
+  [false, "highway", "steps"],
+  [false, "highway", "pedestrian"],
+  [false, "highway", "living_street"],
+  [false, "highway", "residential"],
+  [false, "highway", "service"],
+  [false, "highway", "path"],
+  [false, "highway", "footway"],
+  [false, "highway", "cycleway"],
+
+  [false, "waterway", "canal"],
+
+  [false, "garden:type", "residential"],
+
+  [false, "public_transport", "platform"],
+  [false, "railway", "subway"],
+  [false, "landuse", "residential"],
+]
+
+
+const canvasSize = [1000,1000];
+const highestSeed = (16**3)-1;
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addButton("Load file", () => document.getElementById('myInput').click())
+
+var currentXMLDoc;
+
+getMapFileFromServer("/map1.osm");
+
+window.addEventListener("keyup", (event) => {
+  if(event.keyCode === 83){
+      const ctx = new C2S(...canvasSize);
+      draw(ctx)
+      gat.downloadText("map.svg", ctx.getSerializedSvg());
+  }
+});
+
+function draw(ctx){
+  args = parameterHandler.getAll();
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
+  ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3/1000;
+
+  ctx.translate(250,250)
+  ctx.scale(500, 500)
+  //ctx.scale(1000, 1000)
+  
+  drawInput(ctx, currentXMLDoc);
+  
+  ctx.stroke();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function getNodeObject(xmlDoc, bounds){
+  let nodeObj = {};
+  const nodes = xmlDoc.evaluate("/osm/node", xmlDoc, null, XPathResult.ANY_TYPE, null);
+  let result = nodes.iterateNext();
+  while (result) {
+    nodeObj[result.attributes.id.value] = [
+      (result.attributes.lon.value-bounds.minlon)/bounds.deltalon,
+      1-((result.attributes.lat.value-bounds.minlat)/bounds.deltalon),
+    ]
+    result = nodes.iterateNext();
+  } 
+  return nodeObj;
+}
+
+function getBounds(xmlDoc){
+  const node = xmlDoc.evaluate("/osm/bounds", xmlDoc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+  let bounds = {
+    "minlat": node.singleNodeValue.attributes.minlat.value,
+    "minlon": node.singleNodeValue.attributes.minlon.value,
+    "maxlat": node.singleNodeValue.attributes.maxlat.value,
+    "maxlon": node.singleNodeValue.attributes.maxlon.value,
+  }
+  bounds.deltalon = bounds.maxlon-bounds.minlon;
+  return bounds;
+}
+
+function drawLines(ctx, xmlDoc, nodeObj, settings){
+  function checkDrawWay(settings, wayObj){
+    for(setting of settings){
+      if(wayObj[setting[1]]===setting[2] ) return true;
+    }
+    return false;
+  }
+
+  function getWayObj(result){
+    let wayObj = {}
+    for(node of result.childNodes){
+      if(node.nodeName === "tag"){
+        wayObj[node.attributes.k.value] = node.attributes.v.value;
+      }
+    }
+    return wayObj;
+  }
+
+  function drawWay(ctx, settings, result, wayObj){
+    if(checkDrawWay(settings, wayObj)){
+      let firstPoint = true;
+      for(node2 of result.childNodes){
+        if(node2.nodeName === "nd"){
+          if(firstPoint){
+            ctx.moveTo(...nodeObj[node2.attributes.ref.value])
+          } else {
+            ctx.lineTo(...nodeObj[node2.attributes.ref.value])
+          }
+          firstPoint = false;
+        }
+      }
+    }
+  }
+
+  const nodes = xmlDoc.evaluate("/osm/way", xmlDoc, null, XPathResult.ANY_TYPE, null);
+  let result = nodes.iterateNext();
+
+  
+
+  while (result) {
+
+    drawWay(ctx, settings, result, getWayObj(result));
+
+    result = nodes.iterateNext();
+  }
+}
+
+function changedInputXMLString(inputXMLString){
+  function getAvailableWayTags(xmlDoc){
+    const nodes = xmlDoc.evaluate("/osm/way/tag", xmlDoc, null, XPathResult.ANY_TYPE, null);
+    let result = nodes.iterateNext();
+
+    let wayTags = {}
+    while (result) {
+      if(wayTags[result.attributes.k.value] === undefined){
+        wayTags[result.attributes.k.value] = [result.attributes.v.value];
+      } else {
+        if(!wayTags[result.attributes.k.value].includes(result.attributes.v.value)){
+          wayTags[result.attributes.k.value].push(result.attributes.v.value);
+        }
+      }
+      result = nodes.iterateNext();
+    }
+    return wayTags;
+  }
+
+  parser = new DOMParser();
+  currentXMLDoc = parser.parseFromString(inputXMLString, "text/xml");
+  console.log(getAvailableWayTags(currentXMLDoc).waterway)
+  redraw();
+}
+
+function drawInput(ctx, xmlDoc){
+  const bounds = getBounds(xmlDoc)
+  const nodeObj = getNodeObject(xmlDoc, bounds);
+
+  const trueDrawSettings = drawSettings.filter(setting => setting[0])
+  drawLines(ctx, xmlDoc, nodeObj, trueDrawSettings)
+}
+
+function openFile(event) {
+  const input = event.target;
+  const reader = new FileReader();
+  reader.onload = function(){
+    changedInputXMLString(reader.result);
+  };
+  reader.readAsText(input.files[0]);
+};
+
+function getMapFileFromServer(url){
+  let jsonFile = new XMLHttpRequest();
+  jsonFile.open("GET",url,true);
+  jsonFile.send();
+  jsonFile.onreadystatechange = function() {
+    if (jsonFile.readyState== 4 && jsonFile.status == 200) {
+      changedInputXMLString(jsonFile.responseText);
+    }
+  }
+}
+
+
+</script>
+</body>
+</html>
+
+
+
+
+
+</script>
+</body>
+</html>

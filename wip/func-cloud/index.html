@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Func Cloud</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/dat.gui.min.js"></script>
+    <script src="../../lib/gat-0.2.js"> </script>
+</head>
+<body> 
+<script>
+const canvasSize = [1000,1000];
+const highestSeed = (16**6)-1;
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize, 0.9);
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
+
+if(new URLSearchParams(window.location.search).has("s")){
+  parameterHandler.load(gat.hex2Binary(gat.getURLQueryParam("s")))
+}
+const seedList = new gat.SeedList(parameterHandler.get("seed"),highestSeed);
+
+window.addEventListener("keyup", (event) => {
+  switch(event.keyCode){
+    case 83:
+      const ctx = new C2S(...canvasSize);
+      draw(ctx)
+      gat.downloadText("fc" + gat.binary2Hex(parameterHandler.save()) + ".svg", ctx.getSerializedSvg());
+      break;
+     case 39:
+      parameterHandler.set("seed", seedList.next())
+      redraw()
+      break;
+    case 37:
+      parameterHandler.set("seed", seedList.prev())
+      redraw()
+      break; 
+  }
+});
+
+
+
+
+function draw(ctx){
+  args = parameterHandler.getAll();
+  gat.setURLQueryParam("s", gat.binary2Hex(parameterHandler.save()));
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
+  ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3/1000;
+  ctx.scale(1000,1000);
+  args.ran = new gat.Randomizer(args.seed)
+  args.ctx = ctx;
+  args.numOfPoints = 500; 
+ 
+  args.mapFunction_R1_R2 = mapFunctions_R1_R2["gitter"](args);
+
+  args.mapFunctions_R2_R2_preFilter = [
+    mapFunctions_R2_R2["randomOffset"](args),
+  ]
+
+  args.filterFunction = filterFunctions["circleCheck01"](args);
+  
+  args.mapFunctions_R2_R2_postFilter = [
+    //mapFunctions_R2_R2["randomOffset"](args),
+  ]
+
+  args.drawFunctions = [
+    drawFunctions["drawMultiplePoints"](args),
+    drawFunctions["none"](args),
+  ];
+
+  for(args.p of args.mapFunction_R1_R2(args)){
+    for(offsetFunc of args.mapFunctions_R2_R2_preFilter){
+      args.p = offsetFunc(args);
+    }
+    filter = args.filterFunction(args);
+    for(offsetFunc of args.mapFunctions_R2_R2_postFilter){
+      args.p = offsetFunc(args);
+    }
+    for (let j=0; j<filter.length; j++){
+      if(filter[j]>0 && args.drawFunctions[j] !== undefined){
+        args.filterValue = filter[j]
+        args.drawFunctions[j](args);
+      }
+    }
+  }
+  
+  ctx.stroke();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+const mapFunctions_R1_R2 = {
+  equalDistribution: function(){
+    return function(args){
+      let points = [];
+      for(let i=0; i<args.numOfPoints; i++){
+        let num = args.ran.next();
+        let num1 = Math.floor(num*10000)/10000
+        let num2 = (num-num1)*10000
+        points.push([num1, num2])
+      }
+      return points;
+  }},
+
+  gitter: function(args){
+    const xyCount = Math.floor(Math.sqrt(args.numOfPoints));
+    const dx = 1/xyCount;
+    const dy = 1/xyCount;
+    return function(args){
+      let points = []
+      for(let xc=0; xc<xyCount; xc++){
+        for(let yc=0; yc<xyCount; yc++){
+          const x = xc * dx + dx/2;
+          const y = yc * dy + dy/2;
+          points.push([x, y]);
+        }
+      }
+      return points;
+  }},
+
+}
+
+const mapFunctions_R2_R2 = {
+  randomOffset: function(){
+    const rangeX = 0.005;
+    const rangeY = 0.005;
+    return function(args){
+      return [args.p[0]+args.ran.next(-rangeX, rangeX),args.p[1]+args.ran.next(-rangeY, rangeY)]
+    }
+  }
+}
+
+const filterFunctions = {
+  circleCheck01: function(args){
+    let circles = [];
+    for(let i=0; i<10; i++){
+      circles.push({
+        midX: args.ran.next(0.2, 0.8),
+        midY: args.ran.next(0.2, 0.8),
+        radius: args.ran.next(0.05, 0.15),
+      })
+    }
+    return function(args){
+      let descision = false;
+      for(let i=0; i<circles.length; i++){
+        const d = Math.hypot(args.p[0]-circles[i].midX, args.p[1]-circles[i].midY);
+        if(d<circles[i].radius) descision=true;
+      }
+      if(descision){
+        return [1, 0]
+      } else {
+        return [0, 1]
+      }
+    }
+  },
+
+  circleCheck: function(args){
+    let circles = [];
+    for(let i=0; i<10; i++){
+      circles.push({
+        midX: args.ran.next(0.2, 0.8),
+        midY: args.ran.next(0.2, 0.8),
+        radius: args.ran.next(0.05, 0.15),
+      })
+    }
+    return function(args){
+      let minRadius = 5;
+      for(let i=0; i<circles.length; i++){
+        const d = Math.hypot(args.p[0]-circles[i].midX, args.p[1]-circles[i].midY);
+        minRadius = Math.min(minRadius, d);
+      }
+      //console.log(minRadius)
+      return [Math.pow(1-minRadius, 10)]
+    }
+  }
+}
+
+const drawFunctions = {
+  none: function(){
+    return function(){}
+  },
+
+  drawPoint: function(){
+    return function(args){
+      args.ctx.moveTo(...args.p);
+      args.ctx.lineTo(args.p[0]+0.00000001, args.p[1])
+  }},
+
+  drawHorizontelLine: function(){
+    const length = 0.005
+    return function(args){
+      args.ctx.moveTo(args.p[0]-length, args.p[1])
+      args.ctx.lineTo(args.p[0]+length, args.p[1])
+  }},
+
+  drawX: function(){
+    return function(args){
+      const l = args.filterValue*0.005;
+      
+      args.ctx.moveTo(args.p[0], args.p[1])
+
+      args.ctx.lineTo(args.p[0]-l, args.p[1]-l)
+      args.ctx.lineTo(args.p[0], args.p[1])
+
+      args.ctx.lineTo(args.p[0]-l, args.p[1]+l)
+      args.ctx.lineTo(args.p[0], args.p[1])
+      
+      args.ctx.lineTo(args.p[0]+l, args.p[1]+l)
+      args.ctx.lineTo(args.p[0], args.p[1])
+      
+      args.ctx.lineTo(args.p[0]+l, args.p[1]-l)
+      args.ctx.lineTo(args.p[0], args.p[1])
+  }},
+
+  drawConnectedLine: function(){
+    return function(args){
+      args.ctx.lineTo(...args.p)
+  }},
+
+  drawMultiplePoints: function(){
+    const rangeX = 0.01
+    const rangeY = 0.01
+    const numOfPoints = 30;
+    return function(args){
+      for(let i=0; i<numOfPoints; i++){
+        let newP = [args.p[0]+args.ran.next(-rangeX, rangeX), args.p[1]+args.ran.next(-rangeY, rangeY)]
+        //console.log(newP, args.p)
+        args.ctx.moveTo(...newP);
+        args.ctx.lineTo(newP[0]+0.00001, newP[1])
+      }
+    }
+  }
+}
+
+redraw()
+
+
+
+
+</script>
+</body>
+</html>

@@ -6,12 +6,9 @@
     <script src="../../lib/canvas2svg.js"> </script>
     <script src="../../lib/dat.gui.min.js"></script>
     <script src="../../lib/gat-0.2.js"> </script>
-    <script src="../../lib/gat.number2Words.js"> </script>
 </head>
 <body> 
 <script>
-
-
 
 const canvasSize = [1000,1000];
 const highestSeed = (16**3)-1;
@@ -28,7 +25,7 @@ parameterHandler.addSlider("crazy", 0.85, 0.04, 0.96, 0.02)
 parameterHandler.addSlider("stem bend value", 0, -0.07, 0.07, 0.005)
 parameterHandler.addSlider("laola", 0, -0.5, 0.5, 0.05)
 parameterHandler.addSlider("point count", 2000, 100, 10000, 100)
-parameterHandler.addButton("connect points", false)
+parameterHandler.addCheckbox("connect points", false)
 parameterHandler.addParam("seed", new gat.Randomizer().nextInt(highestSeed), 0, highestSeed, 1)
 
 if(new URLSearchParams(window.location.search).has("s")){
