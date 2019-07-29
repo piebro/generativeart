@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Draw Lines From Text Files</title>
+    <script src="../../lib/dat.gui.min.js"></script>
+    <script src="../../lib/gat-0.2.js"> </script>
+</head>
+<body> 
+
+<img id='image' style="display: none;"/>
+
+<input id="myInput" type="file" style="visibility:hidden;" onchange='openFile(event)'/>
+
+<script>
+
+//const initImageUrl = "bence-balla-schottner-6aWOQlBXUnM-unsplash.jpg";
+const initImageUrl = "pawel-czerwinski-UwrOilxt2FU-unsplash-1500x1000.jpg";
+
+const highestSeed = (16**3)-1;
+
+const centeredCanvasObj = new gat.CenteredElement("canvas", [10,10]);
+centeredCanvasObj.element.style.visibility = "hidden";
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+const seedList = new gat.SeedList(new gat.Randomizer().nextInt(highestSeed),highestSeed);
+
+const parameterHandler = new gat.ParameterHandler(redraw);
+parameterHandler.addButton("Load image", () => document.getElementById('myInput').click())
+const currentImageController = parameterHandler.addButton("Img: ", ()=>{})
+parameterHandler.addDropdown("Mode", "reorder", ["reorder", "rotate", "nice", "awesome"])
+parameterHandler.addText("grid", "5,5")
+
+parameterHandler.addText("bbox", "100,100,400,400")
+
+parameterHandler.addParam("seed", seedList.current(), 0, highestSeed, 1)
+
+window.addEventListener("keyup", (event) => {
+  if (document.activeElement.tagName == "INPUT") return
+    switch(event.keyCode){
+    case 83:
+      const canvas = document.createElement('canvas');
+      canvas.width = currentImg.naturalWidth
+      canvas.height = currentImg.naturalHeight
+      const ctx = canvas.getContext('2d');
+      draw(ctx)
+      gat.downloadCanvas("ok.png", canvas)
+      break;
+    case 39:
+      parameterHandler.set("seed", seedList.next())
+      redraw()
+      break;
+    case 37:
+      parameterHandler.set("seed", seedList.prev())
+      redraw()
+      break; 
+}})
+
+let currentImg = new Image();
+currentImg.src = initImageUrl;
+currentImg.onload = () => {
+  redraw()
+  centeredCanvasObj.element.style.visibility = "visible";
+};
+
+function draw(ctx){
+  args = parameterHandler.getAll();
+
+  args.gridNum = args["grid"].split(",").map(value => parseInt(value))
+  args.bboxNum = args["bbox"].split(",").map(value => parseInt(value))
+
+  imgSize = [currentImg.naturalWidth, currentImg.naturalHeight]
+  let xyRatio = imgSize[1]/imgSize[0]
+  canvasSize = [1260, Math.round(1260*xyRatio)]
+  centeredCanvasObj.size = canvasSize
+  ctx.clearRect(0, 0, ...canvasSize);
+
+  currentImageController.name("Img: " + imgSize[0] + "x" + imgSize[1])
+
+  ctx.drawImage(currentImg,0,0,...imgSize,0,0,...canvasSize);
+
+  if(args["Mode"] == "reorder"){
+    reorder(ctx, currentImg, args)
+  } else if(args["Mode"] == "rotate"){
+    rotate(ctx, currentImg, args)
+  }
+
+  
+}
+
+
+function reorder(ctx, img, args){
+  const ran = new gat.Randomizer(args.seed)
+  const imgSize = [img.naturalWidth, img.naturalHeight]
+  const n = args.gridNum[0]
+  const m = args.gridNum[1]
+
+  const matrix = getShuffledMatrix(ran, n, m)
+
+  const tx = args.bboxNum[0]/imgSize[0];
+  const ty = args.bboxNum[1]/imgSize[1];
+  const endX = 1 - args.bboxNum[2]/imgSize[0];
+  const endY = 1 - args.bboxNum[3]/imgSize[1];
+  const dx = (1- tx - endX)/n;
+  const dy = (1- ty - endY)/m;
+
+  for(let j=0; j<m; j++){
+    for(let i=0; i<n; i++){
+      const v = matrix[j][i]
+      drawImagePart(ctx, img,
+        [tx+i*dx,ty+j*dy,tx+i*dx+dx,ty+j*dy+dy],
+        [tx+v[0]*dx,ty+v[1]*dy,tx+v[0]*dx+dx,ty+v[1]*dy+dy]
+      )
+    }
+  }
+
+  function getShuffledMatrix(ran, n, m){
+    let matrix = []
+    for(let j=0; j<m; j++){
+      matrix.push([])
+      for(let i=0; i<n; i++){
+        matrix[j].push([i,j])
+      }
+    }
+    flatMatrix = [].concat(...matrix);
+    shuffle(ran, flatMatrix)
+    for(let i=0; i<m; i++){
+      matrix[i] = flatMatrix.slice(i*n, (i+1)*n)
+    }
+    return matrix;
+  }
+
+  function shuffle(ran, a) {
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = ran.nextInt(i);
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+}
+
+function rotate(ctx, img, args){
+  let ran = new gat.Randomizer(args.seed)
+  const n = args.gridNum[0]
+  const m = args.gridNum[1]
+
+  const tx = args.bboxNum[0]/imgSize[0];
+  const ty = args.bboxNum[1]/imgSize[1];
+  const endX = 1 - args.bboxNum[2]/imgSize[0];
+  const endY = 1 - args.bboxNum[3]/imgSize[1];
+  const dx = (1- tx - endX)/n;
+  const dy = (1- ty - endY)/m;
+
+  for(let j=0; j<m; j++){
+    for(let i=0; i<n; i++){
+      drawImagePart(ctx, img,
+        [tx+i*dx,ty+j*dy,tx+i*dx+dx,ty+j*dy+dy],
+        [tx+i*dx,ty+j*dy,tx+i*dx+dx,ty+j*dy+dy],
+        ran.nextChoice([0,90,180,270])
+      )
+    }
+  }
+}
+
+function drawImagePart(ctx, img, bboxImg, bboxCanvas, rotation){
+  imgSize = [img.naturalWidth, img.naturalHeight]
+  canvasSize = [ctx.canvas.width, ctx.canvas.height]
+  ctx.save();
+
+  if (rotation != undefined && rotation != 0){
+    const mid = [
+      canvasSize[0]*(bboxCanvas[2]+bboxCanvas[0])/2,
+      canvasSize[1]*(bboxCanvas[3]+bboxCanvas[1])/2
+    ]
+    ctx.translate(mid[0], mid[1])
+    ctx.rotate(rotation*Math.PI/180)
+    ctx.translate(-mid[0], -mid[1])
+  }
+  
+  ctx.drawImage(img,
+  Math.round(imgSize[0]*bboxImg[0]),
+  Math.round(imgSize[1]*bboxImg[1]),
+  Math.round(imgSize[0]*(bboxImg[2]-bboxImg[0])),
+  Math.round(imgSize[1]*(bboxImg[3]-bboxImg[1])),
+  Math.round(canvasSize[0]*bboxCanvas[0]),
+  Math.round(canvasSize[1]*bboxCanvas[1]),
+  Math.round(canvasSize[0]*(bboxCanvas[2]-bboxCanvas[0])),
+  Math.round(canvasSize[1]*(bboxCanvas[3]-bboxCanvas[1]))
+  );
+
+  ctx.restore()
+}
+
+
+function openFile(event) {
+  const input = event.target;
+  const reader = new FileReader();
+  reader.onload = function(){
+    const dataURL = reader.result;
+    const output = document.getElementById('image');
+    output.src = dataURL;
+
+    currentImg = new Image();
+    currentImg.src = dataURL;
+    currentImg.onload = () => {
+      redraw()
+    }
+  };
+  reader.readAsDataURL(input.files[0]);
+};
+
+</script>
+</body>
+</html>
