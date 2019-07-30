@@ -29,12 +29,14 @@ const parameterHandler = new gat.ParameterHandler(redraw);
 parameterHandler.addButton("Load image", () => document.getElementById('myInput').click())
 const currentImageController = parameterHandler.addButton("Img: ", ()=>{})
 parameterHandler.addText("canvas width", "720") // 2 * 3 * 2 * 5 * 2 * 2 * 3 = 720
-parameterHandler.addDropdown("mode", "sort", ["reorder", "rotate", "sort"])
+parameterHandler.addDropdown("mode", "sort", ["none", "reorder", "rotate", "sort", "repeat"])
 parameterHandler.addText("grid", "5,5")
 
 parameterHandler.addText("bbox img", "100,100,1400,900")
 
 parameterHandler.addDropdown("sort mode", "grayscale average", ["grayscale average", "grayscale luminosity", "lightness", "hue", "saturation", "compare r,g then b"])
+
+parameterHandler.addText("repeat offset", "0,0")
 
 parameterHandler.addParam("seed", seedList.current(), 0, highestSeed, 1)
 
@@ -91,11 +93,57 @@ function draw(ctx, saveMode){
     rotate(ctx, currentImg, args)
   } else if(args["mode"] == "sort"){
     sort(ctx, currentImg, args)
+  } else if(args["mode"] == "repeat"){
+    repeat(ctx, currentImg, args)
   }
 
   // let tempImg = new Image();
   // tempImg.src = ctx.canvas.toDataURL("image/png");
   // tempImg.onload = () => {};
+}
+
+function repeat(ctx, img, args){
+  
+  
+  const ran = new gat.Randomizer(args.seed)
+  const imgSize = [img.naturalWidth, img.naturalHeight]
+  const n = args.gridNum[0]
+  const m = args.gridNum[1]
+
+  let offsetRange = args["repeat offset"].split(",").map(value => parseInt(value))
+  offsetRange[0] = offsetRange[0]/imgSize[0]
+  offsetRange[1] = offsetRange[1]/imgSize[1] 
+
+
+  const dx = 1/n;
+  const dy = 1/m;
+
+  const bboxImg = [
+    args.bboxNum[0]/imgSize[0],
+    args.bboxNum[1]/imgSize[1],
+    args.bboxNum[2]/imgSize[0],
+    args.bboxNum[3]/imgSize[1],
+  ]
+
+  for(let j=0; j<m; j++){
+    for(let i=0; i<n; i++){
+
+      const offset = [ran.next(-offsetRange[0], offsetRange[0]), ran.next(-offsetRange[1], offsetRange[1])];
+
+      const tempBboxImg = [
+        Math.max(0, offset[0] + bboxImg[0]),
+        Math.max(0, offset[1] + bboxImg[1]),
+        Math.min(1, offset[0] + bboxImg[2]),
+        Math.min(1, offset[1] + bboxImg[3])
+      ]
+
+      drawImagePart(ctx, img,
+        tempBboxImg,
+        [i*dx,j*dy,i*dx+dx,j*dy+dy]
+      )
+    }
+  }
+
 }
 
 const sortFunctions = {
