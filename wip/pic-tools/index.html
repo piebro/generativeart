@@ -28,10 +28,13 @@ const seedList = new gat.SeedList(new gat.Randomizer().nextInt(highestSeed),high
 const parameterHandler = new gat.ParameterHandler(redraw);
 parameterHandler.addButton("Load image", () => document.getElementById('myInput').click())
 const currentImageController = parameterHandler.addButton("Img: ", ()=>{})
-parameterHandler.addDropdown("Mode", "reorder", ["reorder", "rotate", "nice", "awesome"])
+parameterHandler.addText("canvas width", "720") // 2 * 3 * 2 * 5 * 2 * 2 * 3 = 720
+parameterHandler.addDropdown("mode", "sort", ["reorder", "rotate", "sort"])
 parameterHandler.addText("grid", "5,5")
 
-parameterHandler.addText("bbox", "100,100,400,400")
+parameterHandler.addText("bbox img", "100,100,1400,900")
+
+parameterHandler.addDropdown("sort mode", "grayscale average", ["grayscale average", "grayscale luminosity", "lightness", "hue", "saturation", "compare r,g then b"])
 
 parameterHandler.addParam("seed", seedList.current(), 0, highestSeed, 1)
 
@@ -43,7 +46,7 @@ window.addEventListener("keyup", (event) => {
       canvas.width = currentImg.naturalWidth
       canvas.height = currentImg.naturalHeight
       const ctx = canvas.getContext('2d');
-      draw(ctx)
+      draw(ctx, true)
       gat.downloadCanvas("ok.png", canvas)
       break;
     case 39:
@@ -63,31 +66,125 @@ currentImg.onload = () => {
   centeredCanvasObj.element.style.visibility = "visible";
 };
 
-function draw(ctx){
+function draw(ctx, saveMode){
   args = parameterHandler.getAll();
-
   args.gridNum = args["grid"].split(",").map(value => parseInt(value))
-  args.bboxNum = args["bbox"].split(",").map(value => parseInt(value))
-
-  imgSize = [currentImg.naturalWidth, currentImg.naturalHeight]
-  let xyRatio = imgSize[1]/imgSize[0]
-  canvasSize = [1260, Math.round(1260*xyRatio)]
-  centeredCanvasObj.size = canvasSize
-  ctx.clearRect(0, 0, ...canvasSize);
-
-  currentImageController.name("Img: " + imgSize[0] + "x" + imgSize[1])
-
-  ctx.drawImage(currentImg,0,0,...imgSize,0,0,...canvasSize);
-
-  if(args["Mode"] == "reorder"){
-    reorder(ctx, currentImg, args)
-  } else if(args["Mode"] == "rotate"){
-    rotate(ctx, currentImg, args)
-  }
+  args.bboxNum = args["bbox img"].split(",").map(value => parseInt(value))
 
   
+  const imgSize = [currentImg.naturalWidth, currentImg.naturalHeight]
+  currentImageController.name("Img: " + imgSize[0] + "x" + imgSize[1])
+
+  const canvasWidth = parseInt(args["canvas width"])
+  const xyRatio = imgSize[1]/imgSize[0]
+  let canvasSize = [canvasWidth, Math.round(canvasWidth*xyRatio)]
+  if(saveMode === true) canvasSize = imgSize
+  centeredCanvasObj.size = canvasSize
+  
+  
+  ctx.clearRect(0, 0, ...canvasSize);
+  ctx.drawImage(currentImg,0,0,...imgSize,0,0,...canvasSize);
+
+  if(args["mode"] == "reorder"){
+    reorder(ctx, currentImg, args)
+  } else if(args["mode"] == "rotate"){
+    rotate(ctx, currentImg, args)
+  } else if(args["mode"] == "sort"){
+    sort(ctx, currentImg, args)
+  }
+
+  // let tempImg = new Image();
+  // tempImg.src = ctx.canvas.toDataURL("image/png");
+  // tempImg.onload = () => {};
 }
 
+const sortFunctions = {
+  "grayscale average": function(a, b){
+    return (a[0]+a[1]+a[2]) - (b[0]+b[1]+b[2])
+  },
+  "grayscale luminosity":function(a, b){
+    return (0.21*a[0]+0.72*a[1]+0.07*a[2]) - (0.21*b[0]+0.72*b[1]+0.07*b[2])
+  },
+  "lightness": function(a, b){
+    return (
+      Math.max(a[0],a[1],a[2]) + Math.min(a[0],a[1],a[2]) - 
+      Math.max(b[0],b[1],b[2]) + Math.min(b[0],b[1],b[2])
+    )
+  },
+  "hue":function(a, b){
+    return (rgbToHue(...a) - rgbToHue(...b))
+  },
+  "saturation":function(a, b){
+    return (rgbToSaturation(...a) - rgbToSaturation(...b))
+  },
+  "compare r,g then b": function(a, b){
+    if(a[0] == b[0]){
+      if(a[1] == b[1]){
+        return a[2]-b[2]
+      }
+      return a[1]-b[1]
+    }
+    return a[0]-b[0]
+  },
+}
+
+function rgbToHue(r, g, b){
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var h = (max + min) / 2;
+  if (max == min) {
+    return 0; // achromatic
+  } else {
+    var d = max - min;
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return h;
+}
+
+function rgbToSaturation(r, g, b){
+  var max = Math.max(r, g, b), min = Math.min(r, g, b);
+  var s, l = (max + min) / 2;
+  if (max == min) {
+    return 0; // achromatic
+  } else {
+    var d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  }
+  return s;
+}
+
+function sort(ctx, img, args){
+  const imgSize = [img.naturalWidth, img.naturalHeight]
+  const canvasSize = [ctx.canvas.width, ctx.canvas.height]
+
+  const bboxCanvas = [
+    Math.round(args.bboxNum[0]/imgSize[0]*canvasSize[0]),
+    Math.round(args.bboxNum[1]/imgSize[1]*canvasSize[1]),
+    Math.round(args.bboxNum[2]/imgSize[0]*canvasSize[0]),
+    Math.round(args.bboxNum[3]/imgSize[1]*canvasSize[1])
+  ]
+
+  const bboxCanvasSize= [bboxCanvas[2]-bboxCanvas[0], bboxCanvas[3]-bboxCanvas[1]]
+  imgData = ctx.getImageData(bboxCanvas[0], bboxCanvas[1], bboxCanvasSize[0], bboxCanvasSize[1]);
+
+  a = []
+  for(let i=0; i<imgData.data.length/4; i++){
+    a.push([imgData.data[i*4],imgData.data[i*4+1],imgData.data[i*4+2]])   
+  }
+  a.sort(sortFunctions[args["sort mode"]])
+  
+  for(let i=0; i<a.length; i++){
+    imgData.data[i*4] = a[i][0]
+    imgData.data[i*4+1] = a[i][1]
+    imgData.data[i*4+2] = a[i][2]
+  }
+
+  ctx.putImageData(imgData, bboxCanvas[0], bboxCanvas[1]);
+}
 
 function reorder(ctx, img, args){
   const ran = new gat.Randomizer(args.seed)
@@ -141,6 +238,7 @@ function reorder(ctx, img, args){
 
 function rotate(ctx, img, args){
   let ran = new gat.Randomizer(args.seed)
+  const imgSize = [img.naturalWidth, img.naturalHeight]
   const n = args.gridNum[0]
   const m = args.gridNum[1]
 
