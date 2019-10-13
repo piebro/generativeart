@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Templet Tool</title>
+    <script src="../../lib/canvas2svg.js"> </script>
+    <script src="../../lib/gat-0.3.js"> </script>
+    <link rel="stylesheet" type="text/css" href="../../lib/tool-gui.css">
+</head>
+
+<body>
+
+<div class=ui-div id="ui-div">
+
+  <br><label class=ui-label:before>Title One</label><br>
+  <input type="text" class="item ui-input" onchange="redraw()">
+
+  <br><label class=ui-label>Title Two</label><br>
+  <select class=item onchange="redraw()">
+    <option>Opt One</option>
+    <option>Opt Two</option>
+  </select>
+
+  <br><label class=ui-label>Title Three</label><br>
+  <textarea class=item rows="5" onchange="redraw()">Some Nice Text</textarea>
+
+</div>
+
+<div class=canvas-div id="canvas-div"></div>
+  
+
+<script>
+const canvasSize = [1000,1000];
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize, document.getElementById("canvas-div"));
+centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
+
+
+window.addEventListener("keyup", (event) => {
+  if (document.activeElement.tagName == "TEXTAREA" || document.activeElement.tagName == "INPUT") return
+  if(event.keyCode == 83){
+    const ctx = new C2S(...canvasSize);
+    draw(ctx)
+    gat.downloadText("templet-tool.svg", ctx.getSerializedSvg());
+  }
+});
+
+redraw()
+
+function draw(ctx){
+  if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...canvasSize);
+  ctx.beginPath();
+  ctx.lineJoin="round";
+  ctx.lineCap="round";
+  ctx.lineWidth=3;
+  
+  ctx.moveTo(100,100);
+  ctx.lineTo(900,900);
+  ctx.moveTo(900,100);
+  ctx.lineTo(100,900);
+  
+  ctx.stroke();
+}
+</script>
+    
+
+
+</body>
+</html>

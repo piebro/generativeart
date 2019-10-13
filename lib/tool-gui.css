@@ -1,0 +1,39 @@
+:root {
+  --ui-width: calc(8% + 200px);
+}
+
+.ui-div {
+  position: absolute;
+  background-color: #313131;
+  top:0;
+  left:0;
+  width:var(--ui-width);
+  height:100%;
+  text-align: center;
+  font-size: 20px;
+  color:ivory;
+}
+
+.canvas-div {
+  position:absolute;
+  background-color:lightgray;
+  top:0;
+  right: 0;
+  width:calc(100% - var(--ui-width));
+  height:100%;
+}
+
+.item {
+  width:80%;
+  font-size: 18px;
+}
+
+.ui-label {
+  display: inline-block;
+  margin-top: 15px;
+  margin-bottom: 5px;
+}
+
+.ui-input {
+  width:75%;
+}
