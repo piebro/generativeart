@@ -5,21 +5,24 @@
     <title>Templet Tool</title>
     <script src="../../lib/canvas2svg.js"> </script>
     <script src="../../lib/gat-0.3.js"> </script>
-    <link rel="stylesheet" type="text/css" href="../../lib/tool-gui.css">
+    <link rel="stylesheet" type="text/css" href="../lib/tool-gui.css">
 </head>
 
 <body>
 
 <div class=ui-div id="ui-div">
-  <br>
-  <label for="file-upload" class="ui-label, ui-file-upload">
+  <br><label for="file-upload" class="ui-label, ui-file-upload">
       upload file
   </label>
-  <br>
   <input id="file-upload" type="file" style="display: none"/>
 
   <br><label class=ui-label>Title One</label><br>
   <input type="text" class="item ui-input" onchange="redraw()">
+
+  <br><br><label for="button" class="ui-label, ui-file-upload">
+      Button
+  </label>
+  <button style="display: none" id="button" onclick="redraw()"></button>
 
   <br><label class=ui-label>Title Two</label><br>
   <select class=item onchange="redraw()">
