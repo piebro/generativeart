@@ -4,32 +4,151 @@
     <meta charset="UTF-8">
     <title>Templet Tool</title>
     <script src="../../lib/canvas2svg.js"> </script>
-    <script src="../../lib/gat-0.4.js"> </script>
+    <script src="../../lib/gat-0.3.js"> </script>
     <script src="../../lib/opentype.min.js"> </script>
     <link rel="stylesheet" type="text/css" href="../../lib/tool-gui.css">
 </head>
 
+<style>
+
+.multiselect {
+  width: 100px;
+}
+
+.selectBox {
+  position: relative;
+}
+
+.selectBox select {
+  width: 100%;
+  
+}
+
+.overSelect {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+#checkboxes {
+  display: none;
+  border: 1px #dadada solid;
+}
+
+#checkboxes label {
+  display: block;
+}
+
+#checkboxes label:hover {
+  background-color: #1e90ff;
+}
+
+</style>
+
 <body>
+
+<div class=ui-div id="ui-div">
+  
+  <br><label class=ui-label>font</label><br>
+  <select class=item id=font onchange="fontChange()">
+    <option selected="select">Roboto-Thin</option>
+    <option>Roboto-Black</option>
+  </select>
+  <input id="file-upload" type="file" style="display: none"/>
+
+  <br><label class=ui-label>canvas size</label><br>
+  <input type="text" id=canvas-size class="item ui-input" onchange="redraw()" value="1000,600">
+
+  <br><label class=ui-label>text</label><br>
+  <textarea class=item id=text rows="8" onchange="redraw()">Some Nice Text</textarea>
+
+  <br>
+  <div class="selectBox item ui-label" onclick="showCheckboxes()">
+    <select class="item ui-label">
+      <option>Deformations</option>
+    </select>
+    <div class="overSelect"></div>
+  </div>
+  <div id="checkboxes" >
+    <label for="one" class="">
+      <input type="checkbox" id="one" />First checkbox</label>
+  </div>
+
+  <br><label class=ui-label>text alignment</label><br>
+  <select class=item id=text-alignment onchange="redraw()">
+    <option>left</option>
+    <option selected="selected">center</option>
+    <option>right</option>
+  </select>
+
+  <br><label class=ui-label>line spacing</label><br>
+  <input type="text" id=line-spacing class="item ui-input" onchange="redraw()" value="0.0">
+
+  <br><label class=ui-label>border</label><br>
+  <input type="text" id=border class="item ui-input" onchange="redraw()" value="0.2">
+
+  <br><label class=ui-label>creazyness</label><br>
+  <input type="text" id=creazyness class="item ui-input" onchange="redraw()" value="0.2">
+  
+
+  <br><br><label for="button" class="ui-label, ui-file-upload">
+      Shuffel
+  </label>
+  <button style="display: none" id="button" onclick="redraw()"></button>
+
+  
+
+
+</div> 
+
+<div class=canvas-div id="canvas-div"></div>
+  
+
 <script>
+
+//TODO: better gui, with drop down stuff
+
+var expanded = false;
+
+function showCheckboxes() {
+  var checkboxes = document.getElementById("checkboxes");
+  if (!expanded) {
+    checkboxes.style.display = "block";
+    expanded = true;
+  } else {
+    checkboxes.style.display = "none";
+    expanded = false;
+  }
+}
 
 // asci text: http://patorjk.com/
 
-const canvasSize = [1000,600];
-
-const uiObj = new gat.ui();
-const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
+const centeredCanvasObj = new gat.CenteredElement("canvas", [1000,600], document.getElementById("canvas-div"));
 centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
-uiObj.canvasDiv.appendChild(centeredCanvasObj.element);
-centeredCanvasObj.resize();
-
-gat.addSaveAsSVGKey("s", centeredCanvasObj.element, draw, ()=>"templet-tool");
 const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
 
-
 let RobotoFont;
+let typingTimer;
 let currentFont;
-let currentRandomizer = new gat.Randomizer();
 
+
+window.addEventListener("keyup", (event) => {
+  if (document.activeElement.tagName == "TEXTAREA" || document.activeElement.tagName == "INPUT") {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(redraw, 400);
+  } else {
+    if(event.keyCode == 83){
+      const ctx = new C2S(...centeredCanvasObj.size);
+      draw(ctx)
+      gat.downloadText("strange-text.svg", ctx.getSerializedSvg());
+    }
+  }
+});
+
+
+fontChange();
 
 function fontChange(){
   if(currentFont != document.getElementById('font').value){
@@ -46,52 +165,24 @@ function fontChange(){
 }
 
 
-
-uiObj.addSelection("font", ["Roboto-Thin", "Roboto-Black"], redraw);
-uiObj.addInput("canvas size", "1000, 600", redraw, (str)=>str.split(",").map(value => parseInt(value)));
-uiObj.addTextarea("text", "Some Nice Text", redraw);
-uiObj.addButton("new seeds", ()=>{
-  currentRandomizer = new gat.Randomizer();
-  redraw();
-})
-
-
-const uiTabAlign = uiObj.addTab("align");
-uiTabAlign.addSelection("text alignment", ["center", "left", "right"], redraw);
-uiTabAlign.addInput("line spacing", "0.0", redraw, (str)=>parseFloat(str));
-uiTabAlign.addInput("border", "0.2", redraw, (str)=>parseFloat(str));
-
-const uiTabReadable = uiObj.addTab("deform");
-uiTabReadable.addInput("creazyness", "0.2", redraw, (str)=>parseFloat(str));
-uiTabReadable.addCheckbox("mirrorX", redraw);
-uiTabReadable.addCheckbox("mirrorY", redraw);
-uiTabReadable.addCheckbox("rotate", redraw);
-uiTabReadable.addCheckbox("scale", redraw);
-uiTabReadable.addCheckbox("translateX", redraw);
-uiTabReadable.addCheckbox("translateY", redraw);
-
-
-
-fontChange();
-
 function draw(ctx){
   if (ctx.clearRect != undefined) ctx.clearRect(0, 0, ...centeredCanvasObj.size);
   ctx.beginPath();
   ctx.lineJoin="round";
   ctx.lineCap="round";
   ctx.lineWidth=3;
-
-  currentRandomizer.reset();
   
 
-  const tempCanvasSize = uiObj.values["canvas size"]
+  const tempCanvasSize = document.getElementById("canvas-size").value.split(",").map(value => parseInt(value));
+
   centeredCanvasObj.size = [centeredCanvasObj.size[0], centeredCanvasObj.size[0] * tempCanvasSize[1]/tempCanvasSize[0]];
 
-  const textArray = makeTextCreazy(uiObj.values["text"], currentRandomizer.newRandomizer()).split("\n")
-  const textAlignment = uiObj.values["text alignment"];
-  const lineSpacing = uiObj.values["line spacing"];
-  const borderAlpha = uiObj.values["border"];
-  const creazyness = uiObj.values["creazyness"];
+
+  const textArray = makeTextCreazy(document.getElementById("text").value).split("\n")
+  const textAlignment = document.getElementById("text-alignment").value;
+  const lineSpacing = parseFloat(document.getElementById("line-spacing").value);
+  const borderAlpha = parseFloat(document.getElementById("border").value);
+  const creazyness = parseFloat(document.getElementById("creazyness").value);
   
 
   const canvasSize = centeredCanvasObj.size;
@@ -104,21 +195,12 @@ function draw(ctx){
   const fixedTranslateX = borderAlpha/2 * canvasSize[1];
   const fixedTranslateY = (canvasSize[1]-scale*bb.height)/2
 
-  const randomizer = {
-    "mirrorX": currentRandomizer.newRandomizer(),
-    "mirrorY": currentRandomizer.newRandomizer(),
-    "rotate": currentRandomizer.newRandomizer(),
-    "scale": currentRandomizer.newRandomizer(),
-    "translateX": currentRandomizer.newRandomizer(),
-    "translateY": currentRandomizer.newRandomizer(),
-  }
-
   for(let i=0; i<textArray.length; i++){
     let translateX = fixedTranslateX;
     if(textAlignment=="center"){
       translateX = (canvasSize[0] - bb.width[i]*scale)/2;
     } else if(textAlignment=="right"){
-      translateX = canvasSize[0] - bb.moaraaaaaaamoaraaaaaaawidth[i]*scale
+      translateX = canvasSize[0] - bb.width[i]*scale
     }
     let translateY = fixedTranslateY + (i+1)*scale + i * lineSpacing * scale;
 
@@ -129,10 +211,24 @@ function draw(ctx){
       const cHeight = scale;
       const cMid = [translateX + tempXOffset + cWidth/2, translateY - cHeight*6/17] 
 
+      
+
+      //ctx.rect(cMid[0]-10, cMid[1]-10, 20, 20)
+      //ctx.stroke()
+
+      
+
       path = RobotoFont.getPath(char, translateX + tempXOffset, translateY, scale);
       if(creazyness >= 0){
-        path = deformPath(randomizer, uiObj, creazyness, path, cMid, scale);
+        path = deformPath(creazyness, path, cMid);
       }
+      
+      //
+      //
+      //pathMirrorY(path, cMid);
+      //pathTranslate(path, 100, 100)
+      //pathScale(path, cMid, 1.5, 1.5)
+      //console.log(path)
       path.draw(ctx);
 
       tempXOffset += cWidth;
@@ -140,55 +236,25 @@ function draw(ctx){
   }  
 }
 
-function deformPath(randomizer, uiObj, creazyness, path, cMid, scale){
-  // mirrorX
-  if(uiObj.values["mirrorX"]){
-    if(randomizer.mirrorX.next()>1-(creazyness/2)*0.7){
+function deformPath(creazyness, path, cMid){
+  if(creazyness>0.1){
+    if(Math.random()>1-(creazyness/2)*0.7){
       pathMirrorX(path, cMid);
     }
   }
   
-  // mirrorY
-  if(uiObj.values["mirrorY"]){
-    if(randomizer.mirrorY.next()>1-(creazyness/2)*0.7){
-      pathMirrorY(path, cMid);
-    }
-  }
-
-  // rotate
-  if(uiObj.values["rotate"]){
-    const rotation = creazyness * (randomizer.rotate.next()-0.5) * 0.85 * Math.PI;
+  if(creazyness>0.2){
+    const rotation = (creazyness-0.2) * (Math.random()-0.5) * 0.9 * Math.PI;
     pathRotate(path, cMid, rotation);
   }
-
-  // scale
-  if(uiObj.values["scale"]){
-    const scale = 1+ creazyness * (randomizer.scale.next()-0.5) * 1.65;
-    pathScale(path, cMid, scale, scale);
-  }
-
-  // translateX
-  if(uiObj.values["translateX"]){
-    const tx = creazyness * (randomizer.translateX.next()-0.5) * scale;
-    pathTranslate(path, tx, 0);
-  }
   
-  // translateY
-  if(uiObj.values["translateY"]){
-    const ty = creazyness * (randomizer.translateY.next()-0.5) * scale;
-    pathTranslate(path, 0, ty);
-  }
 
+  
+  
   return path
 }
 
-function pathMirrorX(path, mid){
-  pathScale(path, mid, 1, -1);
-}
-
-function pathMirrorY(path, mid){
-  pathScale(path, mid, -1, 1);
-}
+//operatione: übereinander, doppelt
 
 function pathRotate(path, mid, angle){
   const cos = Math.cos(angle);
@@ -206,6 +272,14 @@ function pathRotate(path, mid, angle){
       c.y1 = centeredX1*sin + centeredY1*cos + mid[1];
     }
   }
+}
+
+function pathMirrorY(path, mid){
+  pathScale(path, mid, 1, -1);
+}
+
+function pathMirrorX(path, mid){
+  pathScale(path, mid, -1, 1);
 }
 
 function pathScale(path, mid, sx, sy){
@@ -248,12 +322,13 @@ function getBoundingBox(textArray, lineSpacing){
   return {height, width, maxWidth};
 }
 
-function makeTextCreazy(text, letterRan){
+function makeTextCreazy(text){
+  
   let newText = "";
   for(let i in text){
     const newCharChoice = textmap[text[i]];
     if(newCharChoice != undefined){
-      const ranIndex = letterRan.nextInt(newCharChoice.length)
+      const ranIndex = Math.floor(Math.random() * newCharChoice.length)
       newText += newCharChoice[ranIndex]
     } else {
       newText += text[i];
@@ -313,7 +388,7 @@ const textmap = {
   "X": "ҖӜӼӾӁ",
   "x": "ӽӿ×җӝӂ",
   "Y": "¥ŸУΨϒӋӴҰҸỴӰ",
-  "y": "ӯӌÿѱγӵүұҷҹџў",
+  "y": "ӯӌÿѱλγӵүұҷҹџў",
   "Z": "ŹŻζ",
   "z": "żžӡ",
   "?": "¿�",
@@ -324,8 +399,9 @@ const textmap = {
   
 }
 
+
+
 </script>
-    
 
 
 </body>
