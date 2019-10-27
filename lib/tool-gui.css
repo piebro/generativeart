@@ -1,3 +1,4 @@
+
 :root {
   --ui-width: calc(8% + 200px);
 }
@@ -38,9 +39,21 @@
   width:75%;
 }
 
-.ui-file-upload {
+.ui-button-label {
   border: 1px solid #ccc;
   display: inline-block;
   padding: 6px 12px;
   cursor: pointer;
+}
+
+.ui-tab-label {
+  width:85%;
+}
+
+.ui-tab {
+  border: 1px solid #ccc; 
+  display: inline-block;
+  width:95%;
+  margin-left: 2%;
+  padding-bottom: 10px;
 }

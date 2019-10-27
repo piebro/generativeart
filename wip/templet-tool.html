@@ -4,55 +4,40 @@
     <meta charset="UTF-8">
     <title>Templet Tool</title>
     <script src="../../lib/canvas2svg.js"> </script>
-    <script src="../../lib/gat-0.3.js"> </script>
+    <script src="../../lib/gat-0.4.js"> </script>
     <link rel="stylesheet" type="text/css" href="../lib/tool-gui.css">
 </head>
 
 <body>
-
-<div class=ui-div id="ui-div">
-  <br><label for="file-upload" class="ui-label, ui-file-upload">
-      upload file
-  </label>
-  <input id="file-upload" type="file" style="display: none"/>
-
-  <br><label class=ui-label>Title One</label><br>
-  <input type="text" class="item ui-input" onchange="redraw()">
-
-  <br><br><label for="button" class="ui-label, ui-file-upload">
-      Button
-  </label>
-  <button style="display: none" id="button" onclick="redraw()"></button>
-
-  <br><label class=ui-label>Title Two</label><br>
-  <select class=item onchange="redraw()">
-    <option>Opt One</option>
-    <option>Opt Two</option>
-  </select>
-
-  <br><label class=ui-label>Title Three</label><br>
-  <textarea class=item rows="5" onchange="redraw()">Some Nice Text</textarea>
-
-</div>
-
-<div class=canvas-div id="canvas-div"></div>
-  
-
 <script>
+
 const canvasSize = [1000,1000];
-const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize, document.getElementById("canvas-div"));
+
+const uiObj = new gat.ui();
+const centeredCanvasObj = new gat.CenteredElement("canvas", canvasSize);
 centeredCanvasObj.element.style.backgroundColor="#EEEEEE";
+uiObj.canvasDiv.appendChild(centeredCanvasObj.element);
+centeredCanvasObj.resize();
+gat.addSaveAsSVGKey("s", draw, ()=>"templet-tool");
 const redraw = draw.bind(null, centeredCanvasObj.element.getContext("2d"));
 
 
-window.addEventListener("keyup", (event) => {
-  if (document.activeElement.tagName == "TEXTAREA" || document.activeElement.tagName == "INPUT") return
-  if(event.keyCode == 83){
-    const ctx = new C2S(...canvasSize);
-    draw(ctx)
-    gat.downloadText("templet-tool.svg", ctx.getSerializedSvg());
-  }
-});
+uiObj.addButton("button", redraw);
+uiObj.addInput("input x, y", "100, 100", redraw, (str)=>str.split(",").map(value => parseInt(value)));
+uiObj.addSelection("selection", ["one", "two", "three"], redraw);
+uiObj.addTextarea("textarea", "ok\ncool", redraw);
+
+const uiTab1 = uiObj.addTab("tab 1");
+uiTab1.addButton("tab-1-button", redraw);
+uiTab1.addInput("tab-1-input float", "0.5", redraw, (str)=>parseFloat(str));
+uiTab1.addSelection("tab-1-selection", ["one", "two", "three"], redraw);
+uiTab1.addTextarea("tab-1-textarea", "ok\ncool", redraw);
+
+const uiTab2 = uiObj.addTab("tab 2");
+uiTab2.addButton("tab-2-button", redraw);
+uiTab2.addInput("tab-2-input float", "0.5", redraw, (str)=>parseFloat(str));
+uiTab2.addSelection("tab-2-selection", ["one", "two", "three"], redraw);
+uiTab2.addTextarea("tab-2-textarea", "ok\ncool", redraw);
 
 redraw()
 
@@ -62,8 +47,11 @@ function draw(ctx){
   ctx.lineJoin="round";
   ctx.lineCap="round";
   ctx.lineWidth=3;
+
+  console.log(uiObj.values)
+  console.log("redraw")
   
-  ctx.moveTo(100,100);
+  ctx.moveTo(...uiObj.values["input x, y"]);
   ctx.lineTo(900,900);
   ctx.moveTo(900,100);
   ctx.lineTo(100,900);
