@@ -10,6 +10,7 @@
 </head>
 
 <body>
+
 <script>
 
 /*
@@ -40,34 +41,20 @@
   addr:city
   */
 
+// einen Blog anfangen:
 // info button: mit link to geofarbik, osm, https://wiki.openstreetmap.org/wiki/Map_Features und ein paar beispielkategorienen, alle textarea json attribute erklären,
 // als erst eine neue map hochladen dann die url eingeben im erklär text
 // + docu, was möglich ist
 // gutes neues start einstellungen
 
-// mehr möglichkeiten einen node zu mahlen
-
-// allgemein den code aufräumen und übersichtlicher machen
-
-// better loading? show some progress?
-
-// nur linien malen die auh sichtbar sind?
-
-// neue Karte Workflow: "new map" button -> pop up: ask for url -> 
-// (wenn es möglich ist einen geofarbik link vorschalgen) file upload for url -> shwo map
-
+// anstatt den canvas vllt direkt svg benutzen?
+// https://github.com/ariutta/svg-pan-zoom
 // mit der Maus zoomen und verschieben können
 
-// nach dem hochladen das arraybuffer wieder löschen.
-
-// better osm url parsing
-
-
-let mapArrayBuffer;
 let lastURL;
 let map;
 let drawRulesInputJson;
-const mapAreaWidthDegreeAddition = 0.005;
+const mapAreaWidthDegreeAddition = 0.004;
 
 let startText = [
 `[{
@@ -175,8 +162,6 @@ function mapSettingsChanged(){
 }
 
 
-
-
 function draw(ctx){
   if (ctx.clearRect != undefined) {
     ctx.clearRect(-100000, -100000, 200000, 200000);
@@ -189,8 +174,6 @@ function draw(ctx){
   ctx.lineJoin="round";
   ctx.lineCap="round";
 
-  
-  
   gat.setURLQueryParam("f", textarea.value)
 
   let scale = drawRulesInputJson[0].scale;
@@ -203,27 +186,58 @@ function draw(ctx){
   let drawingSettings = getDrawingSettings(drawRulesInputJson);
 
   for(tag of drawingSettings.drawingOrder){
-    
-    let tagDrawSettings;
-    ctx.beginPath();
     if(tag[2] === "way"){
-      if(drawingSettings.orderedWays[tag[0]] === undefined) continue;
-      if(drawingSettings.orderedWays[tag[0]][tag[1]] === undefined) continue;
-      for(nodeRefs of drawingSettings.orderedWays[tag[0]][tag[1]]){
-        drawWayWithNodeRefs(ctx, nodeRefs);
-      }
-      tagDrawSettings = drawingSettings.drawRulesWays[tag[0]][tag[1]];
+      if(drawingSettings.orderedWays[tag[0]] === undefined || drawingSettings.orderedWays[tag[0]][tag[1]] === undefined) continue;
+      drawWays(ctx, drawingSettings, tag, scale);
     } else if(tag[2] === "node"){
-      if(drawingSettings.orderedNodes[tag[0]] === undefined) continue;
-      if(drawingSettings.orderedNodes[tag[0]][tag[1]] === undefined) continue;
-      for(xy of drawingSettings.orderedNodes[tag[0]][tag[1]]){
-        ctx.rect(xy[0]-2, xy[1]-2, 4, 4);
-      }
-      tagDrawSettings = drawingSettings.drawRulesNodes[tag[0]][tag[1]];
+      if(drawingSettings.orderedNodes[tag[0]] === undefined || drawingSettings.orderedNodes[tag[0]][tag[1]] === undefined) continue;
+      drawNodes(ctx, drawingSettings, tag, scale);
     }
+  }
+}
 
-    
-    
+
+
+function drawWays(ctx, drawingSettings, tag, scale){
+  tagDrawSettings = drawingSettings.drawRulesWays[tag[0]][tag[1]];
+
+  ctx.beginPath();
+  for(nodeRefs of drawingSettings.orderedWays[tag[0]][tag[1]]){
+    drawWayWithNodeRefs(ctx, nodeRefs);
+  }
+  
+  if(tagDrawSettings.fillColor !== undefined){
+    ctx.fillStyle = tagDrawSettings.fillColor;
+    ctx.fill();
+  }
+  if(tagDrawSettings.strokeColor !== undefined){
+    ctx.strokeStyle = tagDrawSettings.strokeColor;
+    ctx.lineWidth = tagDrawSettings.lineWidth/scale;
+    ctx.stroke();
+  }
+}
+
+function drawWayWithNodeRefs(ctx, nodeRefs){
+  let beginPath = true;
+  for(nodeId of nodeRefs){
+    if(map.nodes[nodeId] == undefined){
+      beginPath = true;
+    } else if(beginPath == true){
+      ctx.moveTo(map.nodes[nodeId].x, map.nodes[nodeId].y);
+      beginPath = false;
+    } else {
+      ctx.lineTo(map.nodes[nodeId].x, map.nodes[nodeId].y);
+    }
+  }
+}
+
+function drawNodes(ctx, drawingSettings, tag, scale){
+  tagDrawSettings = drawingSettings.drawRulesNodes[tag[0]][tag[1]];
+      
+  for(xy of drawingSettings.orderedNodes[tag[0]][tag[1]]){
+    ctx.beginPath();
+    ctx.arc(xy[0], xy[1], tagDrawSettings.size , 0, 2 * Math.PI);
+
     if(tagDrawSettings.fillColor !== undefined){
       ctx.fillStyle = tagDrawSettings.fillColor;
       ctx.fill();
@@ -232,13 +246,22 @@ function draw(ctx){
       ctx.strokeStyle = tagDrawSettings.strokeColor;
       ctx.lineWidth = tagDrawSettings.lineWidth/scale;
       ctx.stroke();
-    } 
+    }
   }
 }
 
-function getDrawingSettings(drawRulesInputJson){
-  let drawingSettings = {}
 
+
+function getDrawingSettings(drawRulesInputJson){
+  let drawingSettings = getDrawingSettingsRulesAndOrder(drawRulesInputJson);
+
+  drawingSettings.orderedWays = getOrderedWays(drawingSettings);
+  drawingSettings.orderedNodes = getOrderedNodes(drawingSettings);
+  return drawingSettings;
+}
+
+function getDrawingSettingsRulesAndOrder(drawRulesInputJson){
+  let drawingSettings = {};
   drawingSettings.drawRulesWays = {};
   drawingSettings.drawRulesNodes = {};
   drawingSettings.drawingOrder = [];
@@ -248,6 +271,7 @@ function getDrawingSettings(drawRulesInputJson){
       strokeColor: drawRule["stroke color"],
       lineWidth: drawRule["line width"],
       fillColor: drawRule["fill color"],
+      size: drawRule["size"],
     }
     if(drawRule.type === "way"){
       for(let tag of drawRule.tags){
@@ -267,9 +291,11 @@ function getDrawingSettings(drawRulesInputJson){
       } 
     }
   }
+  return drawingSettings;
+}
 
+function getOrderedWays(drawingSettings){
   let orderedWays = {}
-
   for(let way of Object.entries(map.ways)){
     for(let tag of way[1].tags){
       let rule = drawingSettings.drawRulesWays[tag[0]];
@@ -294,9 +320,11 @@ function getDrawingSettings(drawRulesInputJson){
       }
     }
   }
+  return orderedWays;
+}
 
+function getOrderedNodes(drawingSettings){
   let orderedNodes = {};
-
   for(let node of Object.entries(map.nodes)){
     for(let tag of node[1].tags){
       let rule = drawingSettings.drawRulesNodes[tag[0]];
@@ -321,11 +349,7 @@ function getDrawingSettings(drawRulesInputJson){
       }
     }
   }
-
-  drawingSettings.orderedWays = orderedWays;
-  drawingSettings.orderedNodes = orderedNodes;
-
-  return drawingSettings;
+  return orderedNodes;
 }
 
 
@@ -337,9 +361,11 @@ async function updateMapObj(callback, mapArrayBuffer, osmURL){
     osmURL = "https://www.openstreetmap.org/#map=17/43.72957/7.42408";
   }
 
-  gat.addLoader();
-
+  loaderText = gat.addLoaderText();
+  
   map = getEmptyMapWithBorders(osmURL);
+
+  loaderText.innerText = "loading ...";
 
   await pbfParser.parse(getpbfParser(callback, filePath, mapArrayBuffer));
 }
@@ -348,7 +374,9 @@ function getpbfParser(callback, filePath, mapArrayBuffer){
   return {
     filePath: filePath,
     buffer: mapArrayBuffer,
-    interval: setInterval(function(){console.log(map.counterNode, map.counterWay, map.counterRelations)}, 1000),
+    interval: setInterval(function(){
+      loaderText.innerText = "loaded: " + map.counterNode + " ways and " + map.counterWay + " nodes";
+    }, 1000),
     startTime: Date.now(), 
     endDocument: function(){
       
@@ -356,7 +384,7 @@ function getpbfParser(callback, filePath, mapArrayBuffer){
       let millis = Date.now() - this.startTime;
       console.log(millis/1000, "seconds to load the selected area");
        
-      gat.removeLoader();
+      gat.removeLoaderText();
       callback();
     },
     node: function(node){
@@ -394,7 +422,8 @@ function getpbfParser(callback, filePath, mapArrayBuffer){
 
 function getEmptyMapWithBorders(osmURL){
   let zoomlevel, midLat, midLon;
-  [zoomlevel, midLat, midLon] = osmURL.substr(35).split("/").map(value => parseFloat(value));
+  let valueBeginIndex = osmURL.search("#map") + 5;
+  [zoomlevel, midLat, midLon] = osmURL.substr(valueBeginIndex).split("/").map(value => parseFloat(value));
 
   let widthLon = 360 / Math.pow(2, zoomlevel);
   let widthHeightRatio = centeredCanvasObj.element.height/centeredCanvasObj.element.width;
@@ -436,20 +465,6 @@ function getEmptyMapWithBorders(osmURL){
   map.height = borderXY[3] - borderXY[1];
 
   return map;
-}
-
-function drawWayWithNodeRefs(ctx, nodeRefs){
-  let beginPath = true;
-  for(nodeId of nodeRefs){
-    if(map.nodes[nodeId] == undefined){
-      beginPath = true;
-    } else if(beginPath == true){
-      ctx.moveTo(map.nodes[nodeId].x, map.nodes[nodeId].y);
-      beginPath = false;
-    } else {
-      ctx.lineTo(map.nodes[nodeId].x, map.nodes[nodeId].y);
-    }
-  }
 }
 
 function convertGeoToCanvasPixel(map, lat, lon){

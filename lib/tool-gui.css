@@ -74,6 +74,20 @@
   margin-left: -50px;
 }
 
+.loader-text{
+  position: fixed;
+  z-index: 1000;
+  top: 40%;
+  left: 35%;
+  float:left;
+  background: #313131;
+  width: 30%;
+  padding: 20px;
+  color:ivory;
+  border-radius: 25px;
+  text-align: center;
+}
+
 /* Safari */
 @-webkit-keyframes spin {
   0% { -webkit-transform: rotate(0deg); }
